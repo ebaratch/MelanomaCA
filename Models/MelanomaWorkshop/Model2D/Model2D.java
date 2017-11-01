@@ -15,8 +15,6 @@ class Dish extends AgentGrid2D<Cell> {
     //GLOBAL CONSTANTS
     double DIVISION_PROB=0.01;
     double DEATH_PROB=0.0;
-    //double FUSION_PROB=0.0;
-    double FUSION_PROB=0.00002;
     double CELL_RAD=0.3;
     double MAX_RAD=Math.sqrt(2)*CELL_RAD;
     double FRICTION=0.9;
@@ -39,28 +37,10 @@ class Dish extends AgentGrid2D<Cell> {
         for (int i = 0; i < startingPop; i++) {
             Utils.RandomPointInCircle(startingRadius, startCoords, rn);
             Cell c=NewAgentPT(startCoords[0]+xDim/2.0,startCoords[1]+yDim/2.0);
-            if(i%2==0) {
-                c.Init(RED);
-            }
-            else {
-                c.Init(GREEN);
-            }
+            c.Init(RED);
         }
     }
-    void Fusion(Cell c1,Cell c2){
-        Cell H=NewAgentPT((c1.Xpt()+c2.Xpt())/2,(c1.Ypt()+c2.Ypt())/2);
-        if(c1.color==GREEN && c2.color==GREEN){
-            H.Init(GREEN,true);
-        }
-        else if((c1.color==GREEN && c2.color==RED)||(c1.color==RED && c2.color==GREEN)){
-            H.Init(YELLOW,true);
-        }
-        else if(c1.color==RED && c2.color==RED){
-            H.Init(RED,true);
-        }
-        c1.Dispose();
-        c2.Dispose();
-    }
+
     int SteadyStateMovement(){
         int loopCt=0;
         while(loopCt<MAX_STEADY_STATE_LOOPS) {
@@ -90,9 +70,6 @@ class Dish extends AgentGrid2D<Cell> {
         for (Cell c:this) {
             c.Step();
         }
-        for (Cell c:this){
-            fusionCt+=c.Fuse()?1:0;
-        }
         //System.out.println(fusionCt);
         IncTick();
     }
@@ -100,26 +77,12 @@ class Dish extends AgentGrid2D<Cell> {
 
 class Cell extends SphericalAgent2D<Cell,Dish> {
     int color;
-    boolean hybrid;
 
     void Init(int InitialColor){
         radius=G().CELL_RAD;
         xVel=0;
         yVel=0;
         color=InitialColor;
-        hybrid=false;
-    }
-    void Init(int InitialColor,boolean IsHybrid){
-        xVel=0;
-        yVel=0;
-        color=InitialColor;
-        hybrid=IsHybrid;
-        if(hybrid==false){
-            radius=G().CELL_RAD;
-        }
-        else{
-            radius=Math.sqrt(2)*G().CELL_RAD;
-        }
     }
 
     void SetCellColor(int newColor){
@@ -133,27 +96,7 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
         return Math.pow(G().FORCE_SCALER*overlap,G().FORCE_EXPONENT);
         //return G().FORCE_SCALER*overlap;
     }
-    boolean Fuse(){
-        if(hybrid){return false;}
-        //listing all cells in the area
-        G().cellScratch.clear();
-        G().AgentsInRad(G().cellScratch,Xpt(),Ypt(),G().CELL_RAD*2);
-        int neighborCt=0;
-        //getting valid fusion neighbors
-        for (int i=0;i<G().cellScratch.size();i++) {
-            Cell c=G().cellScratch.get(i);
-            if(!c.hybrid&&c!=this&&Utils.DistSquared(Xpt(),Ypt(),c.Xpt(),c.Ypt())<G().CELL_RAD*2){
-                G().cellScratch.set(neighborCt,c);
-                neighborCt++;
-            }
-        }
-        //fusing
-        if(neighborCt>0&&G().rn.nextDouble()<Utils.ProbScale(G().FUSION_PROB,neighborCt)){
-            G().Fusion(this,G().cellScratch.get(G().rn.nextInt(neighborCt)));
-            return true;
-        }
-        return false;
-    }
+
     double Observe(){
 
         return SumForces(radius+G().MAX_RAD,G().cellScratch,this::OverlapToForce);
@@ -170,11 +113,11 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
         ApplyFriction(G().FRICTION);
     }
     void Step(){
-        if(G().rn.nextDouble()<G().DEATH_PROB && hybrid==false){
+        if(G().rn.nextDouble()<G().DEATH_PROB){
             Dispose();
             return;
         }
-        if(G().rn.nextDouble()<G().DIVISION_PROB && hybrid==false){
+        if(G().rn.nextDouble()<G().DIVISION_PROB){
             Cell child=Divide(G().DIV_RADIUS,G().divCoordScratch,G().rn);
             child.Init(this.color);
             Init(this.color);
@@ -184,7 +127,7 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
 
 public class Model2D {
     static int SIDE_LEN=70;
-    static int STARTING_POP=1000;
+    static int STARTING_POP=1;
     static double STARTING_RADIUS=10;
     static int TIMESTEPS=2000;
     static float[] circleCoords=Utils.GenCirclePoints(1,10);
