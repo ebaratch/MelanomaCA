@@ -1,0 +1,8 @@
+/*
+
+# only allow scource files
+!*.java
+!.gitignore
+!Framework/lib/*
+!NinjaTurtleScheme.jar
+!manual.pdf

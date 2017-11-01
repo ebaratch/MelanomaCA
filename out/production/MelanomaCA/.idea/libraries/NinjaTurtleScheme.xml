@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="NinjaTurtleScheme">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/out/production/AgentFramework/NinjaTurtleScheme.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
