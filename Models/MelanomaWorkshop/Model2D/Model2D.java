@@ -45,7 +45,7 @@ class Dish extends AgentGrid2D<Cell> {
         try {
             lines = Files.readAllLines(Paths.get(path_to_file));
             for (String line : lines) {
-                System.out.println(line.split(",")[1]);
+                System.out.println(line);
             }
         }
         catch(IOException e) {
@@ -53,6 +53,10 @@ class Dish extends AgentGrid2D<Cell> {
 
         }
         return lines;
+    }
+
+    public void writeToFile(List<String> array_list){
+        
     }
 
     public Dish(int sideLen,int startingPop,double startingRadius){
@@ -171,7 +175,7 @@ public class Model2D {
         //TickTimer trt=new TickRateTimer();
         Vis2DOpenGL vis=new Vis2DOpenGL("Cell Fusion Visualization", 1000,1000,SIDE_LEN,SIDE_LEN);
         Dish d=new Dish(SIDE_LEN,STARTING_POP,STARTING_RADIUS);
-        //List<String> list = d.initImageFile(path_to_file);
+        List<String> list = d.initImageFile(path_to_file);
 
         //d.SetCellsColor("red");
         for (int i = 0; i < TIMESTEPS; i++) {
