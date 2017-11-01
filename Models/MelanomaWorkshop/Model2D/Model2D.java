@@ -4,6 +4,7 @@ import Framework.Extensions.SphericalAgent2D;
 import Framework.GridsAndAgents.AgentGrid2D;
 import Framework.Gui.Vis2DOpenGL;
 import Framework.Utils;
+import sun.jvm.hotspot.oops.CellTypeState;
 
 import java.util.ArrayList;
 import java.util.Random;
@@ -34,7 +35,6 @@ class Dish extends AgentGrid2D<Cell> {
     double FORCE_SCALER=0.7;
     //double MAX_VEL=1000000000;
 
-    int fusionCt=0;
     //INTERNAL VARIABLES
     Random rn=new Random();
     ArrayList<Cell> cellScratch=new ArrayList<>();
@@ -64,6 +64,7 @@ class Dish extends AgentGrid2D<Cell> {
             c.Init(RED);
         }
     }
+
 
     int SteadyStateMovement(){
         int loopCt=0;
@@ -100,7 +101,9 @@ class Dish extends AgentGrid2D<Cell> {
 }
 
 class Cell extends SphericalAgent2D<Cell,Dish> {
-    int color;
+    int color=G().RED;
+    String Type;
+
 
     enum CELL_TYPE {
         CANCER, IMMUNE, STROMA, MYELOID
@@ -154,6 +157,7 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
         }
     }
 }
+
 
 public class Model2D {
     static int SIDE_LEN=70;
