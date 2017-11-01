@@ -10,6 +10,15 @@ import java.util.Random;
 
 import static Framework.Utils.*;
 
+// below: file reading
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.List;
+
+
+
+
 class Dish extends AgentGrid2D<Cell> {
     final static int BLACK=RGB(0,0,0),RED=RGB(1,0,0),GREEN=RGB(0,1,0),YELLOW=RGB(1,1,0),BLUE=RGB(0,0,1);
     //GLOBAL CONSTANTS
@@ -30,6 +39,21 @@ class Dish extends AgentGrid2D<Cell> {
     Random rn=new Random();
     ArrayList<Cell> cellScratch=new ArrayList<>();
     double[] divCoordScratch=new double[2];
+
+    public List<String> initImageFile(String path_to_file){
+        List<String> lines = new ArrayList<String>();
+        try {
+            lines = Files.readAllLines(Paths.get(path_to_file));
+            for (String line : lines) {
+                System.out.println(line.split(",")[1]);
+            }
+        }
+        catch(IOException e) {
+            e.printStackTrace();
+
+        }
+        return lines;
+    }
 
     public Dish(int sideLen,int startingPop,double startingRadius){
         super(sideLen,sideLen,Cell.class);
@@ -78,6 +102,11 @@ class Dish extends AgentGrid2D<Cell> {
 class Cell extends SphericalAgent2D<Cell,Dish> {
     int color;
 
+    enum CELL_TYPE {
+        CANCER, IMMUNE, STROMA, MYELOID
+    }
+
+
     void Init(int InitialColor){
         radius=G().CELL_RAD;
         xVel=0;
@@ -88,6 +117,7 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
     void SetCellColor(int newColor){
         color=newColor;
     }
+
 
     double OverlapToForce(double overlap){
         if(overlap<0){
@@ -132,9 +162,13 @@ public class Model2D {
     static int TIMESTEPS=2000;
     static float[] circleCoords=Utils.GenCirclePoints(1,10);
     public static void main(String[] args) {
+        String path_to_file = "/Users/dabler/Documents/spatialstats/testdata.csv";
+
         //TickTimer trt=new TickRateTimer();
         Vis2DOpenGL vis=new Vis2DOpenGL("Cell Fusion Visualization", 1000,1000,SIDE_LEN,SIDE_LEN);
         Dish d=new Dish(SIDE_LEN,STARTING_POP,STARTING_RADIUS);
+        //List<String> list = d.initImageFile(path_to_file);
+
         //d.SetCellsColor("red");
         for (int i = 0; i < TIMESTEPS; i++) {
             vis.TickPause(0);
