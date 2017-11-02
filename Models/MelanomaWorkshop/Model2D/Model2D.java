@@ -16,10 +16,12 @@ import static Framework.Utils.*;
 
 // txt reading/writing
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.ListIterator;
+import java.io.File;
 
 
 class Dish extends AgentGrid2D<Cell> {
@@ -57,12 +59,12 @@ class Dish extends AgentGrid2D<Cell> {
     double[] Ves4={xDim*3/4,yDim/4};
 
 
-    public List<String> initImageFile(String path_to_file){
+    public List<String> readCellCoords(String path_to_file){
         List<String> lines = new ArrayList<String>();
         try {
             lines = Files.readAllLines(Paths.get(path_to_file));
             //for (String line : lines) {
-                //System.out.println(line);
+            //System.out.println(line);
             //}
         }
         catch(IOException e) {
@@ -72,9 +74,30 @@ class Dish extends AgentGrid2D<Cell> {
         return lines;
     }
 
-    public void writeToFile(List<String> array_list){
 
+    public void writeCellCoords(String path_to_file){
+    /*
+        File file = new File(path_to_file);
+        PrintWriter printWriter = new PrintWriter(file);
+        String line = "";
+        int cnt = 0;
+        for (Cell c:this) {
+
+            int type = c.type;
+            double x = c.Xpt();
+            double y = c.Ypt();
+            System.out.println(x);
+            System.out.println(y);
+            System.out.println(type);
+            line = String.format("%i, %i, %f, %f", cnt, type, x, y);
+            printWriter.print(line);
+
+        }
+        printWriter.close();
+
+        */
     }
+
 
 
     double[] divCoordScratch=new double[2];
@@ -133,7 +156,7 @@ class Dish extends AgentGrid2D<Cell> {
 
         else{
             // Get cells from cell list
-            List<String> cell_list = initImageFile(path_to_file);
+            List<String> cell_list = readCellCoords(path_to_file);
             // create seeds
             for (int i = 2; i < cell_list.size(); i++) {
             //for (int i = 950; i < 960; i++) {
@@ -452,7 +475,7 @@ public class Model2D {
 
         //List<String> list = d.initImageFile(path_to_file);
 
-        Dish d=new Dish(SIDE_LEN,STARTING_POP,STARTING_STROMA, STARTING_RADIUS, path_to_file);
+        Dish d=new Dish(SIDE_LEN,STARTING_POP,STARTING_STROMA, STARTING_RADIUS, null);
         //d.SetCellsColor("red");
 
 
@@ -460,6 +483,9 @@ public class Model2D {
             vis.TickPause(0);
             d.Step();
             DrawCells(vis,d);
+            //if (i == TIMESTEPS-1){
+            //    d.writeCellCoords( path_to_output_file );
+            //}
         }
     }
 
