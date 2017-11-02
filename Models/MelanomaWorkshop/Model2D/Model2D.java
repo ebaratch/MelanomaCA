@@ -76,26 +76,34 @@ class Dish extends AgentGrid2D<Cell> {
 
 
     public void writeCellCoords(String path_to_file){
-    /*
-        File file = new File(path_to_file);
-        PrintWriter printWriter = new PrintWriter(file);
-        String line = "";
-        int cnt = 0;
-        for (Cell c:this) {
-
-            int type = c.type;
-            double x = c.Xpt();
-            double y = c.Ypt();
-            System.out.println(x);
-            System.out.println(y);
-            System.out.println(type);
-            line = String.format("%i, %i, %f, %f", cnt, type, x, y);
+        try
+        {
+            File file = new File(path_to_file);
+            PrintWriter printWriter = new PrintWriter(file);
+            String line = "";
+            line = "cell_id,type,x,y\n";
             printWriter.print(line);
+            int cnt = 0;
+            for (Cell c:this) {
 
+                int type = c.type;
+                double x = c.Xpt();
+                double y = c.Ypt();
+                System.out.println(x);
+                System.out.println(y);
+                System.out.println(type);
+                line = "" + cnt + "," + type + "," + x + "," + y + "\n";
+                printWriter.print(line);
+
+            }
+            printWriter.close();
+        } // end try block
+        catch (Exception e) {
+            System.out.println(e.getClass());
         }
-        printWriter.close();
 
-        */
+
+
     }
 
 
@@ -461,7 +469,7 @@ public class Model2D {
     static int STARTING_POP=400;
     static int STARTING_STROMA=170;
     static double STARTING_RADIUS=20;
-    static int TIMESTEPS=4000;
+    static int TIMESTEPS=100;
 
 
     static float[] circleCoords=Utils.GenCirclePoints(1,10);
@@ -471,9 +479,9 @@ public class Model2D {
         //TickTimer trt=new TickRateTimer();
         Vis2DOpenGL vis=new Vis2DOpenGL("Cell Fusion Visualization", 1000,1000,SIDE_LEN,SIDE_LEN);
         
-        String path_to_file = "Models/MelanomaWorkshop/Model2D/spatial_distribution/stroma_clusters.txt";
-
-        //List<String> list = d.initImageFile(path_to_file);
+        String path_to_input_file = "Models/MelanomaWorkshop/Model2D/spatial_distribution/stroma_clusters.txt";
+        String path_to_output_file = "Models/MelanomaWorkshop/Model2D/spatial_distribution/simulation_output.txt";
+        //List<String> list = d.initImageFile(path_to_input_file);
 
         Dish d=new Dish(SIDE_LEN,STARTING_POP,STARTING_STROMA, STARTING_RADIUS, null);
         //d.SetCellsColor("red");
@@ -483,9 +491,9 @@ public class Model2D {
             vis.TickPause(0);
             d.Step();
             DrawCells(vis,d);
-            //if (i == TIMESTEPS-1){
-            //    d.writeCellCoords( path_to_output_file );
-            //}
+            if (i == TIMESTEPS-1){
+                d.writeCellCoords( path_to_output_file );
+            }
         }
     }
 
