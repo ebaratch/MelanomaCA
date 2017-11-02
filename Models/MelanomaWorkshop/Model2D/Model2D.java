@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.ListIterator;
 
 
 class Dish extends AgentGrid2D<Cell> {
@@ -58,9 +59,9 @@ class Dish extends AgentGrid2D<Cell> {
         List<String> lines = new ArrayList<String>();
         try {
             lines = Files.readAllLines(Paths.get(path_to_file));
-            for (String line : lines) {
-                System.out.println(line);
-            }
+            //for (String line : lines) {
+                //System.out.println(line);
+            //}
         }
         catch(IOException e) {
             e.printStackTrace();
@@ -76,7 +77,8 @@ class Dish extends AgentGrid2D<Cell> {
 
     double[] divCoordScratch=new double[2];
 
-    public Dish(int sideLen,int startingPop,int startingStroma,double startingRadius){
+
+    public Dish(int sideLen,int startingPop,int startingStroma,double startingRadius, String path_to_file){
         super(sideLen,sideLen,Cell.class);
         double[] startCoords=new double[2];
         for (int i = 0; i < CELL_RAD.length ; i++) {
@@ -88,26 +90,50 @@ class Dish extends AgentGrid2D<Cell> {
         BloodVesselsCoord.add(Ves3);
         BloodVesselsCoord.add(Ves4);
 
-
-
-
         double[] startCoordsStroma={10,10};
-        for (int i = 0; i < startingStroma; i++) {
-//            Utils.RandomPointInCircle(startingRadius, startCoords, rn);
-            Cell c=NewAgentPT(Math.round(Math.random()*xDim),Math.round(Math.random()*yDim));
-            c.Init(2);
-            stromaCells.add(c);
+
+
+        if (path_to_file == null) {
+            for (int i = 0; i < startingStroma; i++) {
+                //            Utils.RandomPointInCircle(startingRadius, startCoords, rn);
+                Cell c = NewAgentPT(Math.round(Math.random() * xDim), Math.round(Math.random() * yDim));
+                c.Init(1);
+                stromaCells.add(c);
+            }
+
+            for (int i = 0; i < startingPop; i++) {
+                //            Utils.RandomPointInCircle(startingRadius, startCoords, rn);
+                Cell c = NewAgentPT(xDim / 2.0, yDim / 2.0);
+                //            Cell c=NewAgentPT(startCoords[0]+xDim/2.0,startCoords[1]+yDim/2.0);
+                c.Init(0);
+                cancerCells.add(c);
+            }
         }
+        else{
+            // Get cells from cell list
+            List<String> cell_list = initImageFile(path_to_file);
+            // create seeds
+            for (int i = 2; i < cell_list.size(); i++) {
+            //for (int i = 950; i < 960; i++) {
+                String line = cell_list.get(i);
+                String[] line_array = line.split(",");
+                
+                double x = Double.parseDouble(line_array[2]);
+                double y = Double.parseDouble(line_array[3]);
+                int type = Integer.parseInt(line_array[1]) - 1;
 
-        for (int i = 0; i < startingPop; i++) {
-//            Utils.RandomPointInCircle(startingRadius, startCoords, rn);
-            Cell c=NewAgentPT(xDim/2.0,yDim/2.0);
-//            Cell c=NewAgentPT(startCoords[0]+xDim/2.0,startCoords[1]+yDim/2.0);
-            c.Init(0);
-            cancerCells.add(c);
+                if (x < xDim && y < yDim && type < 3){
+                    System.out.println("----- seeding");
+                    System.out.println(x);
+                    System.out.println(y);
+                    System.out.println(type);
+
+                    Cell c=NewAgentPT(x*xDim,y*yDim);
+                    c.Init(type);
+                }
+
+            }
         }
-
-
     }
 
     int SteadyStateMovement(){
@@ -295,11 +321,14 @@ public class Model2D {
 
         //TickTimer trt=new TickRateTimer();
         Vis2DOpenGL vis=new Vis2DOpenGL("Cell Fusion Visualization", 1000,1000,SIDE_LEN,SIDE_LEN);
-        Dish d=new Dish(SIDE_LEN,STARTING_POP,STARTING_STROMA, STARTING_RADIUS);
+
+
+        String path_to_file = "/Users/dabler/Documents/spatialstats/testdata.csv";
+        //List<String> list = d.initImageFile(path_to_file);
+
+        Dish d=new Dish(SIDE_LEN,STARTING_POP,STARTING_STROMA, STARTING_RADIUS, path_to_file);
         //d.SetCellsColor("red");
 
-        //String path_to_file = "/Users/dabler/Documents/spatialstats/testdata.csv";
-        //List<String> list = d.initImageFile(path_to_file);
 
         for (int i = 0; i < TIMESTEPS; i++) {
             vis.TickPause(0);
