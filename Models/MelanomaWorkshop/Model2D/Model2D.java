@@ -16,10 +16,12 @@ import static Framework.Utils.*;
 
 // txt reading/writing
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.ListIterator;
+import java.io.File;
 
 
 class Dish extends AgentGrid2D<Cell> {
@@ -56,7 +58,7 @@ class Dish extends AgentGrid2D<Cell> {
     double[] Ves4={xDim*3/4,yDim/4};
 
 
-    public List<String> initImageFile(String path_to_file){
+    public List<String> readCellCoords(String path_to_file){
         List<String> lines = new ArrayList<String>();
         try {
             lines = Files.readAllLines(Paths.get(path_to_file));
@@ -71,9 +73,39 @@ class Dish extends AgentGrid2D<Cell> {
         return lines;
     }
 
-    public void writeToFile(List<String> array_list){
+
+    public void writeCellCoords(String path_to_file){
+
+        File file = new File(path_to_file);
+        try{
+            PrintWriter printWriter = new PrintWriter(file);
+            String line = "";
+            line = "cell_id,type,x,y" ;
+            printWriter.print(line);
+            int cnt = 0;
+            for (Cell c:this) {
+
+                int type = c.type;
+                double x = c.Xpt();
+                double y = c.Ypt();
+                System.out.println(x);
+                System.out.println(y);
+                System.out.println(type);
+                //line = String.format("%i, %i, %f, %f", cnt, type, x, y);
+                line = "" + cnt + "," + type + "," + x + "," + y + "\n";//String.format("%i,",cnt);
+                printWriter.print(line);
+                System.out.println(line);
+            }
+            printWriter.close();
+        }
+        catch(IOException ex){
+            System.out.println (ex.toString());
+            System.out.println("Could not find file " + path_to_file);
+        }
+
 
     }
+
 
 
     double[] divCoordScratch=new double[2];
@@ -96,11 +128,13 @@ class Dish extends AgentGrid2D<Cell> {
 
         if (path_to_file == null) {
             for (int i = 0; i < startingStroma; i++) {
-                //            Utils.RandomPointInCircle(startingRadius, startCoords, rn);
+                Utils.RandomPointInCircle(startingRadius, startCoords, rn);
                 Cell c = NewAgentPT(Math.round(Math.random() * xDim), Math.round(Math.random() * yDim));
                 c.Init(1);
                 stromaCells.add(c);
             }
+
+
 
             for (int i = 0; i < startingPop; i++) {
                 //            Utils.RandomPointInCircle(startingRadius, startCoords, rn);
@@ -112,42 +146,43 @@ class Dish extends AgentGrid2D<Cell> {
         }
         else{
             // Get cells from cell list
-            List<String> cell_list = initImageFile(path_to_file);
+            List<String> cell_list = readCellCoords(path_to_file);
             // create seeds
             for (int i = 2; i < cell_list.size(); i++) {
-            //for (int i = 950; i < 960; i++) {
                 String line = cell_list.get(i);
-                String[] line_array = line.split(",");
-                System.out.println(line);
-
-                double x = Double.parseDouble(line_array[2]);
-                double y = Double.parseDouble(line_array[3]);
-                int tmp_type = Integer.parseInt(line_array[1]);
-
-                // RECODE CELL IDS FROM NICOLAS' SCHEME TO INTERNAL
-                int type = 10;
-                switch (tmp_type) {
-                    case 1:  type = 1;      // Immune (1) -> (1)
-                        break;
-                    case 2:  type = 0;      // Melanocyte (2) ->(0)
-                        break;
-                    case 3:  type = 2;      // STROMA (3) -> (2)
-                        break;
-                    case 0:  type = 10;     // type > 9 -> ignore
-                        break;
-                }
-
-                if (x < xDim && y < yDim && type < 10){
+                if(line != null && !line.isEmpty()){
+                    String[] line_array = line.split(",");
                     System.out.println("----- seeding");
-                    System.out.println(x);
-                    System.out.println(y);
-                    System.out.println(type);
+                    System.out.println(line);
 
-                    Cell c=NewAgentPT(x*xDim,y*yDim);
-                    c.Init(type);
+                    double x = Double.parseDouble(line_array[2]);
+                    double y = Double.parseDouble(line_array[3]);
+                    int tmp_type = Integer.parseInt(line_array[1]);
+
+                    // RECODE CELL IDS FROM NICOLAS' SCHEME TO INTERNAL
+                    int type = 10;
+                    switch (tmp_type) {
+                        case 1:  type = 1;      // Immune (1) -> (1)
+                            break;
+                        case 2:  type = 0;      // Melanocyte (2) ->(0)
+                            break;
+                        case 3:  type = 2;      // STROMA (3) -> (2)
+                            break;
+                        case 0:  type = 10;     // type > 9 -> ignore
+                            break;
+                    }
+
+                    x = x/500*xDim;
+                    y = y/500*yDim;
+
+                    if (x < xDim && y < yDim && type < 10){
+                        System.out.println(x);
+                        System.out.println(y);
+                        System.out.println(type);
+                        Cell c=NewAgentPT(x,y);
+                        c.Init(type);
+                    }
                 }
-
-
             }
         }
     }
@@ -328,7 +363,7 @@ public class Model2D {
     static int STARTING_POP=1;
     static int STARTING_STROMA=17;
     static double STARTING_RADIUS=20;
-    static int TIMESTEPS=4000;
+    static int TIMESTEPS=5000;
 
 
     static float[] circleCoords=Utils.GenCirclePoints(1,10);
@@ -337,12 +372,12 @@ public class Model2D {
 
         //TickTimer trt=new TickRateTimer();
         Vis2DOpenGL vis=new Vis2DOpenGL("Cell Fusion Visualization", 1000,1000,SIDE_LEN,SIDE_LEN);
-        
-        String path_to_file = "Models/MelanomaWorkshop/Model2D/spatial_distribution/stroma_clusters.txt";
 
+        String path_to_seed_file = "Models/MelanomaWorkshop/Model2D/spatial_distribution/stroma_clusters.txt";
+        String path_to_output_file = "Models/MelanomaWorkshop/Model2D/spatial_distribution/simulation_output.txt";
         //List<String> list = d.initImageFile(path_to_file);
 
-        Dish d=new Dish(SIDE_LEN,STARTING_POP,STARTING_STROMA, STARTING_RADIUS, path_to_file);
+        Dish d=new Dish(SIDE_LEN,STARTING_POP,STARTING_STROMA, STARTING_RADIUS, path_to_seed_file);
         //d.SetCellsColor("red");
 
 
@@ -350,6 +385,9 @@ public class Model2D {
             vis.TickPause(0);
             d.Step();
             DrawCells(vis,d);
+            if (i == TIMESTEPS-1){
+                d.writeCellCoords( path_to_output_file );
+            }
         }
     }
 
