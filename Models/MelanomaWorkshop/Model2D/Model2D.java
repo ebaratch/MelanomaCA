@@ -5,9 +5,14 @@ package Models.MelanomaWorkshop.Model2D;
 import Framework.Extensions.SphericalAgent2D;
 import Framework.GridsAndAgents.AgentGrid2D;
 import Framework.GridsAndAgents.GridBase;
+import Framework.GridsAndAgents.PDEGrid2D;
+
 import Framework.Gui.Vis2DOpenGL;
 import Framework.Utils;
 import org.lwjgl.Sys;
+import Framework.Gui.GridVisWindow;
+import Framework.Gui.Vis2DOpenGL;
+import Framework.Utils;
 
 import java.util.ArrayList;
 import java.util.Random;
@@ -42,6 +47,10 @@ class Dish extends AgentGrid2D<Cell> {
     double[] divProb={0.001,0.0,0.0,0.01};
     double[] deathProb={0.0,0.0,0.0,0.0};
     double baseCaDeathProb=deathProb[0];
+    double productionRate=0.1;
+    double decayRate=0.1;
+    PDEGrid2D diffusible = new PDEGrid2D(xDim, yDim); //Diffusible factor (VEGF,FGF,TGFB)
+
 
     //double MAX_VEL=1000000000;
 
@@ -224,14 +233,40 @@ class Dish extends AgentGrid2D<Cell> {
         }
     }
 
+    void Production() {
+
+        for (Cell ty : cancerCells) {
+            diffusible.Set(ty.Xsq(), ty.Ysq(), diffusible.Get(ty.Xsq(), ty.Ysq()) + productionRate);
+        }
+    }
+    void ChemDecay() {
+        for (int x = 0; x < diffusible.xDim; x++) {
+            for (int y = 0; y < diffusible.yDim; y++) {
+                diffusible.Set(x, y, Math.exp(-decayRate)*diffusible.Get(x,y));
+            }
+        }
+    }
+
+    void Diffusion(){
+        //diff.Advection2ndLW(xVels, yVels);
+        for (int i = 0; i < 1; i++) {
+            diffusible.DiffusionADI(1,0);
+            //diffusible.Advection2ndPredCorr(0.1, 0.1);
+        }
+    }
+
+
     void Step(){
 
         //CHEMICALS
-        //update concentrations
+        Diffusion();
+        Production();
+        ChemDecay();
 
         //CELLS
         //division
         //death
+        //move
 
 
 
@@ -290,10 +325,10 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
                 break;
             case 1:  color = G().AZUL;     // IMMUNE
                 break;
-            case 2:  color = G().YELLOW;   // STROMA
+            case 2:  color = G().YELLOW;   // STROMA    
                 break;
-            case 3:  color = G().YELLOW;   // STROMA
-                break;
+//            case 3:  color = G().YELLOW;   // STROMA
+//                break;
         }
     }
 
@@ -476,13 +511,18 @@ public class Model2D {
         //List<String> list = d.initImageFile(path_to_file);
 
         Dish d=new Dish(SIDE_LEN,STARTING_POP,STARTING_STROMA, STARTING_RADIUS, null);
+        GridVisWindow win = new GridVisWindow("diffusion", d.xDim, d.yDim, 5);
+
         //d.SetCellsColor("red");
 
 
         for (int i = 0; i < TIMESTEPS; i++) {
             vis.TickPause(0);
+            win.TickPause(0);
             d.Step();
             DrawCells(vis,d);
+            DrawDiffusible(win,d);
+
             //if (i == TIMESTEPS-1){
             //    d.writeCellCoords( path_to_output_file );
             //}
@@ -501,5 +541,13 @@ public class Model2D {
         }
         vis.Show();
         //vis.ToPNG(path.concat(Integer.toString(i)));
+    }
+
+    static void DrawDiffusible(GridVisWindow win,Dish d){
+        for (int x = 0; x < win.xDim; x++) {
+            for (int y = 0; y < win.yDim; y++) {
+                win.SetPix(x, y, HeatMapBRG(d.diffusible.Get(x , y )));
+            }
+        }
     }
 }
