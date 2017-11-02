@@ -7,6 +7,7 @@ import Framework.GridsAndAgents.AgentGrid2D;
 import Framework.GridsAndAgents.GridBase;
 import Framework.Gui.Vis2DOpenGL;
 import Framework.Utils;
+import org.lwjgl.Sys;
 
 import java.util.ArrayList;
 import java.util.Random;
@@ -117,12 +118,26 @@ class Dish extends AgentGrid2D<Cell> {
             //for (int i = 950; i < 960; i++) {
                 String line = cell_list.get(i);
                 String[] line_array = line.split(",");
-                
+                System.out.println(line);
+
                 double x = Double.parseDouble(line_array[2]);
                 double y = Double.parseDouble(line_array[3]);
-                int type = Integer.parseInt(line_array[1]) - 1;
+                int tmp_type = Integer.parseInt(line_array[1]);
 
-                if (x < xDim && y < yDim && type < 3){
+                // RECODE CELL IDS FROM NICOLAS' SCHEME TO INTERNAL
+                int type = 10;
+                switch (tmp_type) {
+                    case 1:  type = 1;      // Immune (1) -> (1)
+                        break;
+                    case 2:  type = 0;      // Melanocyte (2) ->(0)
+                        break;
+                    case 3:  type = 2;      // STROMA (3) -> (2)
+                        break;
+                    case 0:  type = 10;     // type > 9 -> ignore
+                        break;
+                }
+
+                if (x < xDim && y < yDim && type < 10){
                     System.out.println("----- seeding");
                     System.out.println(x);
                     System.out.println(y);
@@ -131,6 +146,7 @@ class Dish extends AgentGrid2D<Cell> {
                     Cell c=NewAgentPT(x*xDim,y*yDim);
                     c.Init(type);
                 }
+
 
             }
         }
@@ -218,13 +234,13 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
     void SetCellColor(){
 
         switch (type) {
-            case 0:  color = G().RED;
+            case 0:  color = G().RED;      // MELANOMA
                 break;
-            case 1:  color = G().AZUL;
+            case 1:  color = G().AZUL;     // IMMUNE
                 break;
-            case 2:  color = G().YELLOW;
+            case 2:  color = G().YELLOW;   // STROMA
                 break;
-            case 3:  color = G().YELLOW;
+            case 3:  color = G().YELLOW;   // STROMA
                 break;
         }
     }
@@ -321,9 +337,9 @@ public class Model2D {
 
         //TickTimer trt=new TickRateTimer();
         Vis2DOpenGL vis=new Vis2DOpenGL("Cell Fusion Visualization", 1000,1000,SIDE_LEN,SIDE_LEN);
+        
+        String path_to_file = "Models/MelanomaWorkshop/Model2D/spatial_distribution/stroma_clusters.txt";
 
-
-        String path_to_file = "/Users/dabler/Documents/spatialstats/testdata.csv";
         //List<String> list = d.initImageFile(path_to_file);
 
         Dish d=new Dish(SIDE_LEN,STARTING_POP,STARTING_STROMA, STARTING_RADIUS, path_to_file);
