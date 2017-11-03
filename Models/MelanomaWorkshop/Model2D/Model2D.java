@@ -30,7 +30,7 @@ import java.io.File;
 
 
 class Dish extends AgentGrid2D<Cell> {
-    final static int BLACK=RGB(0,0,0),RED=RGB(1,0,0),GREEN=RGB(0,1,0),YELLOW=RGB(1,1,0),BLUE=RGB(0,0,1), AZUL=RGB(1,0,1);
+    final static int BLACK=RGB(0,0,0),RED=RGB(1,0,0),GREEN=RGB(0,1,0),YELLOW=RGB(1,1,0),BLUE=RGB(0,0,1), AZUL=RGB(1,0,1),CYAN=RGB(0,1,1);
     //GLOBAL CONSTANTS
     double DIVISION_PROB=0.01;
     double DEATH_PROB=0.0;
@@ -40,17 +40,19 @@ class Dish extends AgentGrid2D<Cell> {
     double STEADY_STATE_FORCE=0;
     double MAX_STEADY_STATE_LOOPS=10;
     double[] DIV_RADIUS=new double[CELL_RAD.length];
-    double FORCE_EXPONENT=2;
-    double FORCE_SCALER=0.7;
+    double FORCE_EXPONENT=3;
+    double FORCE_SCALER=0.5;
     double immAttr; // alpha
     double stromAttr; // beta
     double[] divProb={0.003,0.0,0.0,0.01};
-    double[] deathProb={0.0,0.0,0.0,0.0}; // baseline death probability
+    double[] deathProb={0.0025,0.0,0.0,0.0}; // baseline death probability
     double baseCaDeathProb=deathProb[0];
     double productionRate=0.1;
     double decayRate=0.1;
-    double additDeathProb = 0.5;
-    int initialAntigens=2;
+    int initialAntigens=200;
+    int antigenThreshold = 400;
+    double killingProbability=0.6;
+    double treatmentKillingProbability=0.5;
     double mutationProb=0.1;
     int vessels_grid_x = 4;
     int vessels_grid_y = 4;
@@ -366,7 +368,7 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
     int color;
     int type;
     double oldProb;
-    static double[] motility={0.01,0.04,0.006,0.1};
+    static double[] motility={0.0,0.04,0.006};
     double xVelStart;
     double yVelStart;
     double deviation;
@@ -410,7 +412,7 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
         switch (type) {
             case 0:  color = G().RED;      // MELANOMA
                 break;
-            case 1:  color = G().AZUL;     // IMMUNE
+            case 1:  color = G().CYAN;     // IMMUNE
                 break;
             case 2:  color = G().YELLOW;   // STROMA
                 break;
@@ -455,7 +457,7 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
         if (this.type==0) {
             Cell killer = checkTouchingImmuneCells();// returns true if in the circle around a cancer cell founds at least one immune cell
             if (checkTouch == true) {
-                if (G().rn.nextDouble() < aditDeathProb()) {  // if immune cell is present, an additional deathProbab is added
+                if (G().rn.nextDouble() < aditDeathProb(G().killingProbability,G().antigenThreshold)) {  // if immune cell is present, an additional deathProbab is added
                     Dispose();
                     removeDeathFromArrayList(this);
                     immuneExhaustion(killer);
@@ -475,7 +477,12 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
 
         if(G().rn.nextDouble()<G().divProb[type]){
             Cell child=Divide(G().DIV_RADIUS[type],G().divCoordScratch,G().rn);
-            child.Init(this.type,this.antigenNumber);
+            if(G().rn.nextDouble()<G().mutationProb){
+                child.Init(this.type,this.antigenNumber+1);
+            }
+            else{
+                child.Init(this.type,this.antigenNumber);
+            }
             Init(this.type,this.antigenNumber);
         }
         moveCell();
@@ -568,15 +575,24 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
         }
     }
 
-    double aditDeathProb(){
+    double aditDeathProb(double factor,double thresh){
 
-        return (1+Math.tanh(0.0001*antigenNumber))/2;
+        return Math.min(1,factor)*(1+Math.tanh(10*(antigenNumber-thresh)))/2;
     }
 
 
     void moveCell(){
         switch (type) {
             case 0:  // cancer cells do not move
+                xVelStart=xVelStart-(deviation/2)+deviation*Math.random();
+                yVelStart=yVelStart-(deviation/2)+deviation*Math.random();
+//                double attX = G().diffusible.GradientX(this.Xsq(), this.Ysq());
+//                double attY = G().diffusible.GradientY(this.Xsq(), this.Ysq());
+//                this.xVel=2*xVelStart+0.2*attX;
+//                this.yVel=2*yVelStart+0.2*attY;
+                this.xVel=xVelStart-(motility[type]/2)+motility[type]*Math.random();
+                this.yVel=yVelStart-(motility[type]/2)+motility[type]*Math.random();
+                limitVel(this);
                 break;
             case 1:
                 xVelStart=xVelStart-(deviation/2)+deviation*Math.random();
@@ -632,7 +648,7 @@ public class Model2D {
     static int STARTING_POP=20;
     static int STARTING_STROMA=70;
     static double STARTING_RADIUS=20;
-    static int TIMESTEPS=4000;
+    static int TIMESTEPS=40000;
 
 
     static float[] circleCoords=Utils.GenCirclePoints(1,10);
