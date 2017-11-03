@@ -9,6 +9,7 @@ import Framework.GridsAndAgents.PDEGrid2D;
 
 import Framework.Gui.Vis2DOpenGL;
 import Framework.Utils;
+import com.sun.xml.internal.xsom.impl.scd.Iterators;
 import org.lwjgl.Sys;
 import Framework.Gui.GridVisWindow;
 import Framework.Gui.Vis2DOpenGL;
@@ -53,8 +54,9 @@ class Dish extends AgentGrid2D<Cell> {
     double decayRate=0.1;
     int initialAntigens=2;
     double mutationProb=0.1;
+    int vessels_grid_x = 4;
+    int vessels_grid_y = 4;
     PDEGrid2D diffusible = new PDEGrid2D(xDim, yDim); //Diffusible factor (VEGF,FGF,TGFB)
-
 
     //double MAX_VEL=1000000000;
 
@@ -66,10 +68,23 @@ class Dish extends AgentGrid2D<Cell> {
     ArrayList<Cell> stromaCells=new ArrayList<>();
     ArrayList<Cell> immuneCells=new ArrayList<>();
     ArrayList<double[]>BloodVesselsCoord=new ArrayList<>();
-    double[] Ves1={xDim/4,yDim/4};
-    double[] Ves2={xDim*3/4,yDim*3/4};
-    double[] Ves3={xDim/4,yDim*3/4};
-    double[] Ves4={xDim*3/4,yDim/4};
+
+    public ArrayList<double[]> addBloodVessels(int n_vessels_x, int n_vessels_y){
+        ArrayList<double[]>BloodVesselsCoord=new ArrayList<>();
+        double dx = xDim / (n_vessels_x+1);
+        double dy = yDim / (n_vessels_y+1);
+        double x=dx;
+        double y=dy;
+        for (int i = 0; i < n_vessels_x; i++) {
+            for (int j = 0; j < n_vessels_y; j++) {
+                double[] Ves = {dx + dx*i, dy+dy*j};
+                BloodVesselsCoord.add(Ves);
+            }
+        }
+        return BloodVesselsCoord;
+
+    }
+
 
 
     public List<String> readCellCoords(String path_to_file){
@@ -89,26 +104,34 @@ class Dish extends AgentGrid2D<Cell> {
 
 
     public void writeCellCoords(String path_to_file){
-    /*
-        File file = new File(path_to_file);
-        PrintWriter printWriter = new PrintWriter(file);
-        String line = "";
-        int cnt = 0;
-        for (Cell c:this) {
-
-            int type = c.type;
-            double x = c.Xpt();
-            double y = c.Ypt();
-            System.out.println(x);
-            System.out.println(y);
-            System.out.println(type);
-            line = String.format("%i, %i, %f, %f", cnt, type, x, y);
+        try
+        {
+            File file = new File(path_to_file);
+            PrintWriter printWriter = new PrintWriter(file);
+            String line = "";
+            line = "cell_id,type,x,y\n";
             printWriter.print(line);
+            int cnt = 0;
+            for (Cell c:this) {
 
+                int type = c.type;
+                double x = c.Xpt();
+                double y = c.Ypt();
+                System.out.println(x);
+                System.out.println(y);
+                System.out.println(type);
+                line = "" + cnt + "," + type + "," + x + "," + y + "\n";
+                printWriter.print(line);
+
+            }
+            printWriter.close();
+        } // end try block
+        catch (Exception e) {
+            System.out.println(e.getClass());
         }
-        printWriter.close();
 
-        */
+
+
     }
 
 
@@ -123,10 +146,8 @@ class Dish extends AgentGrid2D<Cell> {
             MAX_RAD[i]=Math.sqrt(2)*CELL_RAD[i];
             DIV_RADIUS[i]=CELL_RAD[i]*(2.0/3.0);
         }
-        BloodVesselsCoord.add(Ves1);
-        BloodVesselsCoord.add(Ves2);
-        BloodVesselsCoord.add(Ves3);
-        BloodVesselsCoord.add(Ves4);
+
+        BloodVesselsCoord = this.addBloodVessels(this.vessels_grid_x, this.vessels_grid_y);
 
         double[] startCoordsStroma={10,10};
 
@@ -194,13 +215,15 @@ class Dish extends AgentGrid2D<Cell> {
                         break;
                 }
 
+
+                x = x / 500 * xDim;
+                y = y / 500 * yDim;
                 if (x < xDim && y < yDim && type < 10){
                     System.out.println("----- seeding");
                     System.out.println(x);
                     System.out.println(y);
                     System.out.println(type);
-
-                    Cell c=NewAgentPT(x*xDim,y*yDim);
+                    Cell c=NewAgentPT(x,y);
                     c.Init(type,initialAntigens);
                 }
 
@@ -508,7 +531,7 @@ public class Model2D {
     static int STARTING_POP=400;
     static int STARTING_STROMA=170;
     static double STARTING_RADIUS=20;
-    static int TIMESTEPS=4000;
+    static int TIMESTEPS=1000;
 
 
     static float[] circleCoords=Utils.GenCirclePoints(1,10);
@@ -517,15 +540,14 @@ public class Model2D {
 
         //TickTimer trt=new TickRateTimer();
         Vis2DOpenGL vis=new Vis2DOpenGL("Cell Fusion Visualization", 1000,1000,SIDE_LEN,SIDE_LEN);
-        
-        String path_to_file = "Models/MelanomaWorkshop/Model2D/spatial_distribution/stroma_clusters.txt";
-        //String path_to_file = "/Users/baratcEA/work/Moffitt/Workshop/2017/Data/Imaging/18003_coorCells_IMO7.csv";
 
-        //List<String> list = d.initImageFile(path_to_file);
+        String path_to_input_file = "Models/MelanomaWorkshop/Model2D/spatial_distribution/stroma_clusters.txt";
+        String path_to_output_file = "Models/MelanomaWorkshop/Model2D/spatial_distribution/simulation_output.txt";
+        //List<String> list = d.initImageFile(path_to_input_file);
+
 
         Dish d=new Dish(SIDE_LEN,STARTING_POP,STARTING_STROMA, STARTING_RADIUS, null);
         GridVisWindow win = new GridVisWindow("diffusion", d.xDim, d.yDim, 5);
-
         //d.SetCellsColor("red");
 
 
@@ -535,15 +557,21 @@ public class Model2D {
             d.Step();
             DrawCells(vis,d);
             DrawDiffusible(win,d);
-
-            //if (i == TIMESTEPS-1){
-            //    d.writeCellCoords( path_to_output_file );
-            //}
+            if (i == TIMESTEPS-1){
+                d.writeCellCoords( path_to_output_file );
+            }
         }
     }
 
     static void DrawCells(Vis2DOpenGL vis,Dish d){
+
         vis.Clear(Dish.BLACK);
+
+        //System.out.println(d.BloodVesselsCoord.size());
+        for (int i = 0; i < d.BloodVesselsCoord.size(); i++) {
+            vis.Circle(d.BloodVesselsCoord.get(i)[0], d.BloodVesselsCoord.get(i)[1], 2, d.BLUE);
+        }
+
         for (Cell c:d) {
             //color "cytoplasm"
             vis.Circle(c.Xpt(),c.Ypt(),c.radius,c.color);
@@ -555,6 +583,7 @@ public class Model2D {
         vis.Show();
         //vis.ToPNG(path.concat(Integer.toString(i)));
     }
+
 
     static void DrawDiffusible(GridVisWindow win,Dish d){
         for (int x = 0; x < win.xDim; x++) {
