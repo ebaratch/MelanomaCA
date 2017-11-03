@@ -36,7 +36,7 @@ class Dish extends AgentGrid2D<Cell> {
     double DEATH_PROB=0.0;
     double[] CELL_RAD={0.5,0.3,0.3,0.3};
     double[] MAX_RAD=new double[CELL_RAD.length];
-    double FRICTION=0.9;
+    double FRICTION=0.4;
     double STEADY_STATE_FORCE=0;
     double MAX_STEADY_STATE_LOOPS=10;
     double[] DIV_RADIUS=new double[CELL_RAD.length];
@@ -44,11 +44,12 @@ class Dish extends AgentGrid2D<Cell> {
     double FORCE_SCALER=0.7;
     double immAttr; // alpha
     double stromAttr; // beta
-    double[] divProb={0.001,0.0,0.0,0.01};
-    double[] deathProb={0.0,0.0,0.0,0.0};
+    double[] divProb={0.003,0.0,0.0,0.01};
+    double[] deathProb={0.0,0.0,0.0,0.0}; // baseline death probability
     double baseCaDeathProb=deathProb[0];
     double productionRate=0.1;
     double decayRate=0.1;
+    double additDeathProb = 0.5;
     PDEGrid2D diffusible = new PDEGrid2D(xDim, yDim); //Diffusible factor (VEGF,FGF,TGFB)
 
 
@@ -62,7 +63,7 @@ class Dish extends AgentGrid2D<Cell> {
     ArrayList<Cell> stromaCells=new ArrayList<>();
     ArrayList<Cell> immuneCells=new ArrayList<>();
     ArrayList<double[]>BloodVesselsCoord=new ArrayList<>();
-    double[] Ves1={xDim/4,yDim/4};
+    double[] Ves1={xDim/10,yDim/10};
     double[] Ves2={xDim*3/4,yDim*3/4};
     double[] Ves3={xDim/4,yDim*3/4};
     double[] Ves4={xDim*3/4,yDim/4};
@@ -147,18 +148,19 @@ class Dish extends AgentGrid2D<Cell> {
 //        }
 
         if (path_to_file == null) {
+
+            //INITIALIZE population of cancer and stroma
             for (int i = 0; i < startingStroma; i++) {
 //            Utils.RandomPointInCircle(startingRadius, startCoords, rn);
                 Cell c = NewAgentPT(Math.random() * xDim, Math.random() * yDim);
                 c.Init(2);
-                stromaCells.add(c);
             }
+
             for (int i = 0; i < startingPop; i++) {
             //            Utils.RandomPointInCircle(startingRadius, startCoords, rn);
             Cell c = NewAgentPT(xDim / 2.0, yDim / 2.0);
             //            Cell c=NewAgentPT(startCoords[0]+xDim/2.0,startCoords[1]+yDim/2.0);
             c.Init(0);
-            cancerCells.add(c);
             }
 
             }
@@ -224,19 +226,18 @@ class Dish extends AgentGrid2D<Cell> {
     }
     void immuneArrival(){
         int tick= GetTick();
-        if ((tick % 200)==1){
+        if ((tick % 100)==1){
             for (int i = 0; i <BloodVesselsCoord.size() ; i++) {
             Cell c=NewAgentPT(BloodVesselsCoord.get(i)[0],BloodVesselsCoord.get(i)[1]);
             c.Init(1); //immune
-            immuneCells.add(c);
             }
         }
     }
 
     void Production() {
 
-        for (Cell ty : cancerCells) {
-            diffusible.Set(ty.Xsq(), ty.Ysq(), diffusible.Get(ty.Xsq(), ty.Ysq()) + productionRate);
+        for (int z=0; z<cancerCells.size();z++) {
+            diffusible.Set(cancerCells.get(z).Xsq(), cancerCells.get(z).Ysq(), diffusible.Get(cancerCells.get(z).Xsq(), cancerCells.get(z).Ysq()) + productionRate);
         }
     }
     void ChemDecay() {
@@ -291,7 +292,7 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
     int color;
     int type;
     double oldProb;
-    static double[] motility={0.01,0.01,0.1,0.1};
+    static double[] motility={0.01,0.01,0.01,0.1};
     double xVelStart;
     double yVelStart;
     double deviation;
@@ -303,9 +304,18 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
 
 
 
+
     void Init(int tType){
         radius=G().CELL_RAD[tType];
         type=tType;
+        switch (type) {
+            case 0: G().cancerCells.add(this);      //Melanoma cells
+                break;
+            case 1: G().immuneCells.add(this);      //Immune cells
+                break;
+            case 2: G().stromaCells.add(this);      //stroma cells
+                break;
+        }
         maxVelAbs=motility[type];
         xVelStart=motility[type]*Math.random()-motility[type]/2;
         yVelStart=motility[type]*Math.random()-motility[type]/2;
@@ -325,7 +335,7 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
                 break;
             case 1:  color = G().AZUL;     // IMMUNE
                 break;
-            case 2:  color = G().YELLOW;   // STROMA    
+            case 2:  color = G().YELLOW;   // STROMA
                 break;
 //            case 3:  color = G().YELLOW;   // STROMA
 //                break;
@@ -355,7 +365,7 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
         double x=xVel+Xpt();
         double y=yVel+Ypt();
         if(!G().In(x,y)){
-            Dispose();
+//            Dispose();
             return;
         }
         //ForceMove();
@@ -364,26 +374,23 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
     }
     void Step(){
 
-        switch (type) {
-            case 0:
-                Cell killer=checkTouchingImmuneCells();// returns true if in the circle around a cancer cell founds at least one immune cell
-                if (checkTouch==true){
-                    G().deathProb[type]=0.5;//G().deathProb[type]*10; // if immune cell is present, deathProb is temporarily increased
-                    if(G().rn.nextDouble()<G().deathProb[type]){  /// calculate chance of death
-                        Dispose();
-                        immuneExhaustion(killer);
-                        return;
-                    }
-                    G().deathProb[0]=G().baseCaDeathProb; // return to baseline death prob
-                }
-                break;
-            default:
-                 if(G().rn.nextDouble()<G().deathProb[type]){  /// calculate chance of death
+        if (this.type==0) {
+            Cell killer = checkTouchingImmuneCells();// returns true if in the circle around a cancer cell founds at least one immune cell
+            if (checkTouch == true) {
+                if (G().rn.nextDouble() < G().additDeathProb) {  // if immune cell is present, an additional deathProbab is added
                     Dispose();
+                    removeDeathFromArrayList(this);
+                    immuneExhaustion(killer);
                     return;
-                 }
-                 break;
+                }
+            }
         }
+        if(G().rn.nextDouble()<G().deathProb[type]){  /// calculate chance of death
+            Dispose();
+            removeDeathFromArrayList(this);
+            return;
+        }
+
 
         removeImmuneExhausted(this);
 
@@ -408,9 +415,6 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
             cc = G().immuneCells.get(n);
             int ccXpt = (int) Math.round(cc.Xpt());
             int ccYpt = (int) Math.round(cc.Ypt());
-            if ((ccXpt == 52) && (ccYpt == 52)) {
-                int ciao = 1;
-            }
             int j = 0; //counts on hood
             while ((checkTouch == false) && (j < (hood.length / 2))) {
                 int hoodXpt = hood[2 * j];
@@ -425,6 +429,32 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
         return cc;
     }
 
+    boolean checkTouchingCancerCells() {
+        boolean checkCanc = false;
+        int[] hood = CircleHood(false, 1);  // this circle is centered on the origin, I then need to translate it to the center of my cancer cell (this)
+        for (int j = 0; j < (hood.length / 2); j++) { // replaces the hood arount the cancer cell pos
+            hood[2 * j] = (int) Math.round(hood[2 * j] + this.Xpt());
+            hood[2 * j + 1] = (int) Math.round(hood[2 * j + 1] + this.Ypt());
+        }
+        int n = 0;//moves on immune cells
+        while ((n < G().cancerCells.size()) && (checkCanc == false)) { // considers one at time all cc immune cells
+            cc = G().cancerCells.get(n);
+            int ccXpt = (int) Math.round(cc.Xpt());
+            int ccYpt = (int) Math.round(cc.Ypt());
+            int j = 0; //counts on hood
+            while ((checkCanc == false) && (j < (hood.length / 2))) {
+                int hoodXpt = hood[2 * j];
+                int hoodYpt = hood[2 * j + 1];
+                if ((hoodXpt == ccXpt) && (hoodYpt == ccYpt)) {
+                    checkCanc = true;
+                }
+                j = j + 1;
+            }
+            n = n + 1;
+        }
+        return checkCanc;
+    }
+
 //        for (Cell cc:G().immuneCells)
 //            while((toReturn==false)&&(i <(hood.length/2))) {
 //                if ((hood[2*i]+this.Xpt()==cc.Xpt())&&(hood[2*i+1]+this.Ypt()==cc.Ypt())){
@@ -432,6 +462,20 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
 //                }
 //                i=i+1;
 //            }
+
+    void removeDeathFromArrayList(Cell tthis){
+        switch (tthis.type) {
+            case 0:  G().cancerCells.remove(tthis);      // MELANOMA
+                break;
+            case 1:  G().immuneCells.remove(tthis);     // IMMUNE
+                break;
+            case 2:  G().stromaCells.remove(tthis);   // STROMA
+                break;
+//            case 3:  color = G().YELLOW;   // STROMA
+//                break;
+        }
+    }
+
 
     void immuneExhaustion(Cell tkiller){
         if (tkiller.type==1){ // considering immune cell
@@ -442,6 +486,7 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
     void removeImmuneExhausted(Cell aImmuneCell){
         if ((aImmuneCell.type==1)&&(aImmuneCell.immunePotential>=5)) {
             aImmuneCell.Dispose();
+            removeDeathFromArrayList(aImmuneCell);
         }
     }
 
@@ -452,19 +497,26 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
             case 1:
                 xVelStart=xVelStart-(deviation/2)+deviation*Math.random();
                 yVelStart=yVelStart-(deviation/2)+deviation*Math.random();
-                this.xVel=xVelStart-(motility[type]/2)+motility[type]*Math.random();
-                this.yVel=yVelStart-(motility[type]/2)+motility[type]*Math.random();
-                limitVel();
-//                double ptX=this.Xpt();
-//                double ptY=this.Ypt();
+                double attX = G().diffusible.GradientX(this.Xsq(), this.Ysq());
+                double attY = G().diffusible.GradientY(this.Xsq(), this.Ysq());
+                this.xVel=xVelStart+attX;
+                this.yVel=yVelStart+attY;
+//                this.xVel=xVelStart-(motility[type]/2)+motility[type]*Math.random();
+//                this.yVel=yVelStart-(motility[type]/2)+motility[type]*Math.random();
+                limitVel(this);
+                break;
+          case 2:
+                this.xVel=0; //reinitialize to zero
+                this.yVel=0;
 
-
-//                this.MoveSafePT(ptX-(motility[type]/2)+motility[type]*Math.random(),ptY-(motility[type]/2)+motility[type]*Math.random());
+                if(checkTouchingCancerCells()==false) { // execute this just if there is not a cancer cell touching
+                    this.xVel = G().diffusible.GradientX(this.Xsq(), this.Ysq());
+                    this.yVel = G().diffusible.GradientY(this.Xsq(), this.Ysq());
+                    limitVel(this);
+                }
                 break;
-            case 2:  color = G().YELLOW;
-                break;
-            case 3:  color = G().YELLOW;
-                break;
+//            case 3:  color = G().YELLOW;
+//                break;
         }
     }
 //    void checkOutOfBorder(){
@@ -473,19 +525,19 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
 //        }
 //    }
 
-    void limitVel(){
-        if (this.xVel<-maxVelAbs){
-            this.xVel=-maxVelAbs;
+    void limitVel(Cell tthis){
+        if (tthis.xVel<-tthis.maxVelAbs){
+            tthis.xVel=-tthis.maxVelAbs;
         }
-        else if (this.xVel>maxVelAbs){
-            this.xVel=maxVelAbs;
+        else if (tthis.xVel>tthis.maxVelAbs){
+            tthis.xVel=tthis.maxVelAbs;
         }
 
-        if (this.yVel<-maxVelAbs){
-            this.yVel=-maxVelAbs;
+        if (tthis.yVel<-tthis.maxVelAbs){
+            tthis.yVel=-tthis.maxVelAbs;
         }
-        else if (this.yVel>maxVelAbs){
-            this.yVel=maxVelAbs;
+        else if (tthis.yVel>tthis.maxVelAbs){
+            tthis.yVel=tthis.maxVelAbs;
         }
     }
 
@@ -493,7 +545,7 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
 
 public class Model2D {
     static int SIDE_LEN=70;
-    static int STARTING_POP=400;
+    static int STARTING_POP=20;
     static int STARTING_STROMA=170;
     static double STARTING_RADIUS=20;
     static int TIMESTEPS=4000;
