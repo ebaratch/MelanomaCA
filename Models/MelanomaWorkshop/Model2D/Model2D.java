@@ -32,7 +32,7 @@ import java.io.File;
 class Dish extends AgentGrid2D<Cell> {
     final static int BLACK=RGB(0,0,0),RED=RGB(1,0,0),GREEN=RGB(0,1,0),YELLOW=RGB(1,1,0),BLUE=RGB(0,0,1), AZUL=RGB(1,0,1), CYAN=RGB(0,1,1);
     //GLOBAL CONSTANTS
-    double DIVISION_PROB=0.01;
+    double DIVISION_PROB=0.1;
     double DEATH_PROB=0.0;
     double IMMUNEKILLINGPROB=0.1;
     double MUTATIONPROB=0.1;
@@ -46,8 +46,8 @@ class Dish extends AgentGrid2D<Cell> {
     double FORCE_SCALER=0.7;
     double immAttr; // alpha
     double stromAttr; // beta
-    double[] divProb={0.001,0.0,0.0,0.01};
-    double[] deathProb={0.0,0.0,0.0,0.0};
+    double[] divProb={0.01,0.0,0.0,0.01};
+    double[] deathProb={0.01,0.0,0.0,0.0};
     double baseCaDeathProb=deathProb[0];
     double productionRate=0.1;
     double decayRate=0.1;
