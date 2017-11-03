@@ -44,14 +44,14 @@ class Dish extends AgentGrid2D<Cell> {
     double FORCE_SCALER=0.5;
     double immAttr; // alpha
     double stromAttr; // beta
-    double[] divProb={0.003,0.0,0.0,0.01};
-    double[] deathProb={0.0025,0.0,0.0,0.0}; // baseline death probability
+    double[] divProb={0.01,0.0,0.0,0.01};
+    double[] deathProb={0.009,0.0,0.0,0.0}; // baseline death probability
     double baseCaDeathProb=deathProb[0];
     double productionRate=0.1;
     double decayRate=0.1;
     int initialAntigens=200;
     int antigenThreshold = 400;
-    double killingProbability=0.6;
+    double killingProbability=1.0;
     double treatmentKillingProbability=0.5;
     double mutationProb=0.1;
     int vessels_grid_x = 4;
@@ -479,7 +479,6 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
             else{
                 child.Init(this.type,this.antigenNumber);
             }
-            Init(this.type,this.antigenNumber);
         }
         moveCell();
 //        checkOutOfBorder();
