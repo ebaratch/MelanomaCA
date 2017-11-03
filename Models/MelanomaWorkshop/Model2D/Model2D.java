@@ -67,10 +67,6 @@ class Dish extends AgentGrid2D<Cell> {
     ArrayList<Cell> stromaCells=new ArrayList<>();
     ArrayList<Cell> immuneCells=new ArrayList<>();
     ArrayList<double[]>BloodVesselsCoord=new ArrayList<>();
-    double[] Ves1={xDim/10,yDim/10};
-    double[] Ves2={xDim*3/4,yDim*3/4};
-    double[] Ves3={xDim/4,yDim*3/4};
-    double[] Ves4={xDim*3/4,yDim/4};
 
     public ArrayList<double[]> addBloodVessels(int n_vessels_x, int n_vessels_y){
         ArrayList<double[]>BloodVesselsCoord=new ArrayList<>();
