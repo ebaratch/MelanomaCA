@@ -34,7 +34,7 @@ class Dish extends AgentGrid2D<Cell> {
     //GLOBAL CONSTANTS
     double DIVISION_PROB=0.01;
     double DEATH_PROB=0.0;
-    double[] CELL_RAD={0.5,0.3,0.3,0.3};
+    double[] CELL_RAD={0.5,0.3,0.6,0.3};
     double[] MAX_RAD=new double[CELL_RAD.length];
     double FRICTION=0.4;
     double STEADY_STATE_FORCE=0;
@@ -50,6 +50,10 @@ class Dish extends AgentGrid2D<Cell> {
     double productionRate=0.1;
     double decayRate=0.1;
     double additDeathProb = 0.5;
+    int initialAntigens=2;
+    double mutationProb=0.1;
+    int vessels_grid_x = 4;
+    int vessels_grid_y = 4;
     PDEGrid2D diffusible = new PDEGrid2D(xDim, yDim); //Diffusible factor (VEGF,FGF,TGFB)
 
 
@@ -67,6 +71,24 @@ class Dish extends AgentGrid2D<Cell> {
     double[] Ves2={xDim*3/4,yDim*3/4};
     double[] Ves3={xDim/4,yDim*3/4};
     double[] Ves4={xDim*3/4,yDim/4};
+
+    public ArrayList<double[]> addBloodVessels(int n_vessels_x, int n_vessels_y){
+        ArrayList<double[]>BloodVesselsCoord=new ArrayList<>();
+        double dx = xDim / (n_vessels_x+1);
+        double dy = yDim / (n_vessels_y+1);
+        double x=dx;
+        double y=dy;
+        for (int i = 0; i < n_vessels_x; i++) {
+            for (int j = 0; j < n_vessels_y; j++) {
+                double[] Ves = {dx + dx*i, dy+dy*j};
+                BloodVesselsCoord.add(Ves);
+            }
+        }
+        return BloodVesselsCoord;
+
+    }
+
+
 
 
     public List<String> readCellCoords(String path_to_file){
@@ -86,27 +108,36 @@ class Dish extends AgentGrid2D<Cell> {
 
 
     public void writeCellCoords(String path_to_file){
-    /*
-        File file = new File(path_to_file);
-        PrintWriter printWriter = new PrintWriter(file);
-        String line = "";
-        int cnt = 0;
-        for (Cell c:this) {
-
-            int type = c.type;
-            double x = c.Xpt();
-            double y = c.Ypt();
-            System.out.println(x);
-            System.out.println(y);
-            System.out.println(type);
-            line = String.format("%i, %i, %f, %f", cnt, type, x, y);
+        try
+        {
+            File file = new File(path_to_file);
+            PrintWriter printWriter = new PrintWriter(file);
+            String line = "";
+            line = "cell_id,type,x,y\n";
             printWriter.print(line);
+            int cnt = 0;
+            for (Cell c:this) {
 
+                int type = c.type;
+                double x = c.Xpt();
+                double y = c.Ypt();
+                System.out.println(x);
+                System.out.println(y);
+                System.out.println(type);
+                line = "" + cnt + "," + type + "," + x + "," + y + "\n";
+                printWriter.print(line);
+
+            }
+            printWriter.close();
+        } // end try block
+        catch (Exception e) {
+            System.out.println(e.getClass());
         }
-        printWriter.close();
 
-        */
+
+
     }
+
 
 
 
@@ -120,10 +151,8 @@ class Dish extends AgentGrid2D<Cell> {
             MAX_RAD[i]=Math.sqrt(2)*CELL_RAD[i];
             DIV_RADIUS[i]=CELL_RAD[i]*(2.0/3.0);
         }
-        BloodVesselsCoord.add(Ves1);
-        BloodVesselsCoord.add(Ves2);
-        BloodVesselsCoord.add(Ves3);
-        BloodVesselsCoord.add(Ves4);
+        BloodVesselsCoord = this.addBloodVessels(this.vessels_grid_x, this.vessels_grid_y);
+
 
         double[] startCoordsStroma={10,10};
 
@@ -153,14 +182,14 @@ class Dish extends AgentGrid2D<Cell> {
             for (int i = 0; i < startingStroma; i++) {
 //            Utils.RandomPointInCircle(startingRadius, startCoords, rn);
                 Cell c = NewAgentPT(Math.random() * xDim, Math.random() * yDim);
-                c.Init(2);
+                c.Init(2,0);
             }
 
             for (int i = 0; i < startingPop; i++) {
             //            Utils.RandomPointInCircle(startingRadius, startCoords, rn);
             Cell c = NewAgentPT(xDim / 2.0, yDim / 2.0);
             //            Cell c=NewAgentPT(startCoords[0]+xDim/2.0,startCoords[1]+yDim/2.0);
-            c.Init(0);
+            c.Init(0,initialAntigens);
             }
 
             }
@@ -199,7 +228,7 @@ class Dish extends AgentGrid2D<Cell> {
                     System.out.println(type);
 
                     Cell c=NewAgentPT(x*xDim,y*yDim);
-                    c.Init(type);
+                    c.Init(type,initialAntigens);
                 }
 
             }
@@ -214,7 +243,7 @@ class Dish extends AgentGrid2D<Cell> {
                 maxForce=Math.max(maxForce,c.Observe());
             }
             for (Cell c : this) {
-                c.Act();
+                c.Act(c);
             }
             loopCt++;
             if(maxForce<STEADY_STATE_FORCE){
@@ -226,10 +255,10 @@ class Dish extends AgentGrid2D<Cell> {
     }
     void immuneArrival(){
         int tick= GetTick();
-        if ((tick % 100)==1){
+        if ((tick % 70)==1){
             for (int i = 0; i <BloodVesselsCoord.size() ; i++) {
             Cell c=NewAgentPT(BloodVesselsCoord.get(i)[0],BloodVesselsCoord.get(i)[1]);
-            c.Init(1); //immune
+            c.Init(1,0); //immune
             }
         }
     }
@@ -292,22 +321,25 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
     int color;
     int type;
     double oldProb;
-    static double[] motility={0.01,0.01,0.01,0.1};
+    static double[] motility={0.01,0.04,0.006,0.1};
     double xVelStart;
     double yVelStart;
     double deviation;
     double maxVelAbs;
     Cell cc;
     int immunePotential;
+    int antigenNumber;
+
     boolean checkTouch;
 
 
 
 
 
-    void Init(int tType){
+    void Init(int tType,int tAntigenNumber){
         radius=G().CELL_RAD[tType];
         type=tType;
+        antigenNumber=tAntigenNumber;
         switch (type) {
             case 0: G().cancerCells.add(this);      //Melanoma cells
                 break;
@@ -361,11 +393,12 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
         return ret;
         */
     }
-    void Act(){
-        double x=xVel+Xpt();
-        double y=yVel+Ypt();
+    void Act(Cell cv){
+        double x=cv.xVel+cv.Xpt();
+        double y=cv.yVel+cv.Ypt();
         if(!G().In(x,y)){
-//            Dispose();
+            cv.Dispose();
+            removeDeathFromArrayList(cv);
             return;
         }
         //ForceMove();
@@ -377,7 +410,7 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
         if (this.type==0) {
             Cell killer = checkTouchingImmuneCells();// returns true if in the circle around a cancer cell founds at least one immune cell
             if (checkTouch == true) {
-                if (G().rn.nextDouble() < G().additDeathProb) {  // if immune cell is present, an additional deathProbab is added
+                if (G().rn.nextDouble() < aditDeathProb()) {  // if immune cell is present, an additional deathProbab is added
                     Dispose();
                     removeDeathFromArrayList(this);
                     immuneExhaustion(killer);
@@ -397,8 +430,8 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
 
         if(G().rn.nextDouble()<G().divProb[type]){
             Cell child=Divide(G().DIV_RADIUS[type],G().divCoordScratch,G().rn);
-            child.Init(this.type);
-            Init(this.type);
+            child.Init(this.type,this.antigenNumber);
+            Init(this.type,this.antigenNumber);
         }
         moveCell();
 //        checkOutOfBorder();
@@ -490,6 +523,12 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
         }
     }
 
+    double aditDeathProb(){
+
+        return (1+Math.tanh(0.0001*antigenNumber))/2;
+    }
+
+
     void moveCell(){
         switch (type) {
             case 0:  // cancer cells do not move
@@ -497,12 +536,12 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
             case 1:
                 xVelStart=xVelStart-(deviation/2)+deviation*Math.random();
                 yVelStart=yVelStart-(deviation/2)+deviation*Math.random();
-                double attX = G().diffusible.GradientX(this.Xsq(), this.Ysq());
-                double attY = G().diffusible.GradientY(this.Xsq(), this.Ysq());
-                this.xVel=xVelStart+attX;
-                this.yVel=yVelStart+attY;
-//                this.xVel=xVelStart-(motility[type]/2)+motility[type]*Math.random();
-//                this.yVel=yVelStart-(motility[type]/2)+motility[type]*Math.random();
+//                double attX = G().diffusible.GradientX(this.Xsq(), this.Ysq());
+//                double attY = G().diffusible.GradientY(this.Xsq(), this.Ysq());
+//                this.xVel=2*xVelStart+0.2*attX;
+//                this.yVel=2*yVelStart+0.2*attY;
+                this.xVel=xVelStart-(motility[type]/2)+motility[type]*Math.random();
+                this.yVel=yVelStart-(motility[type]/2)+motility[type]*Math.random();
                 limitVel(this);
                 break;
           case 2:
@@ -546,7 +585,7 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
 public class Model2D {
     static int SIDE_LEN=70;
     static int STARTING_POP=20;
-    static int STARTING_STROMA=170;
+    static int STARTING_STROMA=70;
     static double STARTING_RADIUS=20;
     static int TIMESTEPS=4000;
 
@@ -557,8 +596,9 @@ public class Model2D {
 
         //TickTimer trt=new TickRateTimer();
         Vis2DOpenGL vis=new Vis2DOpenGL("Cell Fusion Visualization", 1000,1000,SIDE_LEN,SIDE_LEN);
-        
-        String path_to_file = "Models/MelanomaWorkshop/Model2D/spatial_distribution/stroma_clusters.txt";
+
+        String path_to_input_file = "Models/MelanomaWorkshop/Model2D/spatial_distribution/stroma_clusters.txt";
+        //String path_to_output_file = "Models/MelanomaWorkshop/Model2D/spatial_distribution/simulation_output.txt";
 
         //List<String> list = d.initImageFile(path_to_file);
 
@@ -583,6 +623,9 @@ public class Model2D {
 
     static void DrawCells(Vis2DOpenGL vis,Dish d){
         vis.Clear(Dish.BLACK);
+        for (int i = 0; i < d.BloodVesselsCoord.size(); i++) {
+            vis.Circle(d.BloodVesselsCoord.get(i)[0], d.BloodVesselsCoord.get(i)[1], 2, d.BLUE);
+        }
         for (Cell c:d) {
             //color "cytoplasm"
             vis.Circle(c.Xpt(),c.Ypt(),c.radius,c.color);
