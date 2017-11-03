@@ -44,11 +44,12 @@ class Dish extends AgentGrid2D<Cell> {
     double FORCE_SCALER=0.7;
     double immAttr; // alpha
     double stromAttr; // beta
-    double[] divProb={0.003,0.0,0.0,0.01};
+    double[] divProb={0.002,0.0,0.0,0.01};
     double[] deathProb={0.0,0.0,0.0,0.0}; // baseline death probability
     double baseCaDeathProb=deathProb[0];
-    double productionRate=0.1;
-    double decayRate=0.1;
+    double productionRate=1.5;
+    double decayRate=0.6;
+    double decayRateStroma=0.2;
     double additDeathProb = 0.5;
     int initialAntigens=2;
     double mutationProb=0.1;
@@ -277,6 +278,14 @@ class Dish extends AgentGrid2D<Cell> {
         }
     }
 
+    void stromaChemDecay(){
+        for (int i = 0; i <stromaCells.size(); i++) {
+            int sX=stromaCells.get(i).Xsq();
+            int sY=stromaCells.get(i).Ysq();
+            diffusible.Set(sX,sY , Math.exp(-decayRateStroma)*diffusible.Get(sX,sY));
+        }
+    }
+
     void Diffusion(){
         //diff.Advection2ndLW(xVels, yVels);
         for (int i = 0; i < 1; i++) {
@@ -292,6 +301,7 @@ class Dish extends AgentGrid2D<Cell> {
         Diffusion();
         Production();
         ChemDecay();
+        stromaChemDecay();
 
         //CELLS
         //division
@@ -321,7 +331,7 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
     int color;
     int type;
     double oldProb;
-    static double[] motility={0.01,0.04,0.006,0.1};
+    static double[] motility={0.01,0.01,0.006,0.1};
     double xVelStart;
     double yVelStart;
     double deviation;
@@ -363,7 +373,7 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
     void SetCellColor(){
 
         switch (type) {
-            case 0:  color = G().RED;      // MELANOMA
+            case 0:  color = RGB(1-antigenNumber/1000,0,0);//G().RED;      // MELANOMA
                 break;
             case 1:  color = G().AZUL;     // IMMUNE
                 break;
@@ -410,7 +420,7 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
         if (this.type==0) {
             Cell killer = checkTouchingImmuneCells();// returns true if in the circle around a cancer cell founds at least one immune cell
             if (checkTouch == true) {
-                if (G().rn.nextDouble() < aditDeathProb()) {  // if immune cell is present, an additional deathProbab is added
+                if (G().rn.nextDouble() < additDeathProb()) {  // if immune cell is present, an additional deathProbab is added
                     Dispose();
                     removeDeathFromArrayList(this);
                     immuneExhaustion(killer);
@@ -427,11 +437,17 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
 
         removeImmuneExhausted(this);
 
+;
 
+        if(this.type==2) { // additional gradient-dependent division probability for stromal cells
+            if(G().rn.nextDouble()<additDivStroma(this)){
+                Cell child=Divide(G().DIV_RADIUS[type],G().divCoordScratch,G().rn);
+                child.Init(this.type,0);
+            }
+        }
         if(G().rn.nextDouble()<G().divProb[type]){
             Cell child=Divide(G().DIV_RADIUS[type],G().divCoordScratch,G().rn);
             child.Init(this.type,this.antigenNumber);
-            Init(this.type,this.antigenNumber);
         }
         moveCell();
 //        checkOutOfBorder();
@@ -523,9 +539,18 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
         }
     }
 
-    double aditDeathProb(){
+    double additDeathProb(){
 
         return (1+Math.tanh(0.0001*antigenNumber))/2;
+    }
+
+    double additDivStroma(Cell thisCell){
+
+        double addDivS=G().diffusible.Get(thisCell.Xsq(),thisCell.Ysq());
+        if (addDivS>1) {
+            return (0.05);
+        }
+        else return 0;
     }
 
 
