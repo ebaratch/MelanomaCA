@@ -143,11 +143,23 @@ class Dish extends AgentGrid2D<Cell> {
             int cnt = 0;
             for (Cell c:this) {
 
-                int type = c.type;
+                int tmp_type = c.type;
                 double x = c.Xpt();
                 double y = c.Ypt();
                 System.out.println(x);
                 System.out.println(y);
+                int type = 10;
+                switch (tmp_type) {
+                    case 1:
+                        type = 1;      // Immune (1) -> (1)
+                        break;
+                    case 0:
+                        type = 2;      // Melanocyte  (0) -> (2)
+                        break;
+                    case 2:
+                        type = 3;      // STROMA (2) -> (3)
+                        break;
+                }
                 System.out.println(type);
                 line = "" + cnt + "," + type + "," + x + "," + y + "\n";
                 printWriter.print(line);
@@ -604,7 +616,6 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
     }
 
     double additDivStroma(Cell thisCell){
-
         double addDivCoeff=G().diffusible.Get(thisCell.Xsq(),thisCell.Ysq());
         if (addDivCoeff>1) {
             return (G().addDivStroma);
@@ -677,7 +688,7 @@ public class Model2D {
     static int STARTING_POP=20;
     static int STARTING_STROMA=70;
     static double STARTING_RADIUS=20;
-    static int TIMESTEPS=40000;
+    static int TIMESTEPS=1;
 
 
     static float[] circleCoords=Utils.GenCirclePoints(1,10);
@@ -685,14 +696,14 @@ public class Model2D {
         double[] motility={1,1,1,1};
 
         //TickTimer trt=new TickRateTimer();
-        Vis2DOpenGL vis=new Vis2DOpenGL("Cell Fusion Visualization", 1000,1000,SIDE_LEN,SIDE_LEN);
+        Vis2DOpenGL vis=new Vis2DOpenGL("melanoma metastasis", 1000,1000,SIDE_LEN,SIDE_LEN);
         String path_to_input_file = "Models/MelanomaWorkshop/Model2D/spatial_distribution/stroma_clusters.txt";
-        path_to_input_file = "Models/MelanomaWorkshop/Model2D/spatial_distribution/18032_coorCells_IMO7.csv";
+        //path_to_input_file = "Models/MelanomaWorkshop/Model2D/spatial_distribution/18032_coorCells_IMO7.csv";
         String path_to_output_file = "Models/MelanomaWorkshop/Model2D/spatial_distribution/simulation_output.txt";
 
         //List<String> list = d.initImageFile(path_to_file);
 
-        Dish d=new Dish(SIDE_LEN,STARTING_POP,STARTING_STROMA, STARTING_RADIUS, null);
+        Dish d=new Dish(SIDE_LEN,STARTING_POP,STARTING_STROMA, STARTING_RADIUS, path_to_input_file);
         GridVisWindow win = new GridVisWindow("diffusion", d.xDim, d.yDim, 5);
 
         //d.SetCellsColor("red");
@@ -705,17 +716,19 @@ public class Model2D {
             DrawCells(vis,d);
             DrawDiffusible(win,d);
 
-            //if (i == TIMESTEPS-1){
-            //    d.writeCellCoords( path_to_output_file );
-            //}
+            if (i == TIMESTEPS-1){
+                d.writeCellCoords( path_to_output_file );
+            }
         }
     }
 
     static void DrawCells(Vis2DOpenGL vis,Dish d){
         vis.Clear(Dish.BLACK);
+        /*
         for (int i = 0; i < d.BloodVesselsCoord.size(); i++) {
             vis.Circle(d.BloodVesselsCoord.get(i)[0], d.BloodVesselsCoord.get(i)[1], 2, d.BLUE);
         }
+        */
         for (Cell c:d) {
             //color "cytoplasm"
             vis.Circle(c.Xpt(),c.Ypt(),c.radius,c.color);
