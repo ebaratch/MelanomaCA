@@ -30,10 +30,12 @@ import java.io.File;
 
 
 class Dish extends AgentGrid2D<Cell> {
-    final static int BLACK=RGB(0,0,0),RED=RGB(1,0,0),GREEN=RGB(0,1,0),YELLOW=RGB(1,1,0),BLUE=RGB(0,0,1), AZUL=RGB(1,0,1);
+    final static int BLACK=RGB(0,0,0),RED=RGB(1,0,0),GREEN=RGB(0,1,0),YELLOW=RGB(1,1,0),BLUE=RGB(0,0,1), AZUL=RGB(1,0,1), CYAN=RGB(0,1,1);
     //GLOBAL CONSTANTS
     double DIVISION_PROB=0.01;
     double DEATH_PROB=0.0;
+    double IMMUNEKILLINGPROB=0.1;
+    double MUTATIONPROB=0.1;
     double[] CELL_RAD={0.5,0.3,0.3,0.3};
     double[] MAX_RAD=new double[CELL_RAD.length];
     double FRICTION=0.9;
@@ -49,6 +51,8 @@ class Dish extends AgentGrid2D<Cell> {
     double baseCaDeathProb=deathProb[0];
     double productionRate=0.1;
     double decayRate=0.1;
+    int initialAntigens=2;
+    double mutationProb=0.1;
     PDEGrid2D diffusible = new PDEGrid2D(xDim, yDim); //Diffusible factor (VEGF,FGF,TGFB)
 
 
@@ -150,14 +154,14 @@ class Dish extends AgentGrid2D<Cell> {
             for (int i = 0; i < startingStroma; i++) {
 //            Utils.RandomPointInCircle(startingRadius, startCoords, rn);
                 Cell c = NewAgentPT(Math.random() * xDim, Math.random() * yDim);
-                c.Init(2);
+                c.Init(2,initialAntigens);
                 stromaCells.add(c);
             }
             for (int i = 0; i < startingPop; i++) {
             //            Utils.RandomPointInCircle(startingRadius, startCoords, rn);
             Cell c = NewAgentPT(xDim / 2.0, yDim / 2.0);
             //            Cell c=NewAgentPT(startCoords[0]+xDim/2.0,startCoords[1]+yDim/2.0);
-            c.Init(0);
+            c.Init(0,initialAntigens);
             cancerCells.add(c);
             }
 
@@ -197,7 +201,7 @@ class Dish extends AgentGrid2D<Cell> {
                     System.out.println(type);
 
                     Cell c=NewAgentPT(x*xDim,y*yDim);
-                    c.Init(type);
+                    c.Init(type,initialAntigens);
                 }
 
             }
@@ -227,7 +231,7 @@ class Dish extends AgentGrid2D<Cell> {
         if ((tick % 200)==1){
             for (int i = 0; i <BloodVesselsCoord.size() ; i++) {
             Cell c=NewAgentPT(BloodVesselsCoord.get(i)[0],BloodVesselsCoord.get(i)[1]);
-            c.Init(1); //immune
+            c.Init(1,initialAntigens); //immune
             immuneCells.add(c);
             }
         }
@@ -290,6 +294,7 @@ class Dish extends AgentGrid2D<Cell> {
 class Cell extends SphericalAgent2D<Cell,Dish> {
     int color;
     int type;
+    int antigenNumber;
     double oldProb;
     static double[] motility={0.01,0.01,0.1,0.1};
     double xVelStart;
@@ -303,9 +308,10 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
 
 
 
-    void Init(int tType){
+    void Init(int tType,int tAntigenNumber){
         radius=G().CELL_RAD[tType];
         type=tType;
+        antigenNumber=tAntigenNumber;
         maxVelAbs=motility[type];
         xVelStart=motility[type]*Math.random()-motility[type]/2;
         yVelStart=motility[type]*Math.random()-motility[type]/2;
@@ -323,9 +329,9 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
         switch (type) {
             case 0:  color = G().RED;      // MELANOMA
                 break;
-            case 1:  color = G().AZUL;     // IMMUNE
+            case 1:  color = G().CYAN;     // IMMUNE
                 break;
-            case 2:  color = G().YELLOW;   // STROMA    
+            case 2:  color = G().YELLOW;   // STROMA
                 break;
 //            case 3:  color = G().YELLOW;   // STROMA
 //                break;
@@ -368,8 +374,8 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
             case 0:
                 Cell killer=checkTouchingImmuneCells();// returns true if in the circle around a cancer cell founds at least one immune cell
                 if (checkTouch==true){
-                    G().deathProb[type]=0.5;//G().deathProb[type]*10; // if immune cell is present, deathProb is temporarily increased
-                    if(G().rn.nextDouble()<G().deathProb[type]){  /// calculate chance of death
+                    G().deathProb[type]=0.0;//G().deathProb[type]*10; // if immune cell is present, deathProb is temporarily increased
+                    if(G().rn.nextDouble()<RecalculateDeathProb(G().deathProb[type])){  /// calculate chance of death
                         Dispose();
                         immuneExhaustion(killer);
                         return;
@@ -390,8 +396,10 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
 
         if(G().rn.nextDouble()<G().divProb[type]){
             Cell child=Divide(G().DIV_RADIUS[type],G().divCoordScratch,G().rn);
-            child.Init(this.type);
-            Init(this.type);
+            if (G().rn.nextDouble()<G().mutationProb){
+                child.Init(this.type,this.antigenNumber+1);
+            }
+            Init(this.type,this.antigenNumber);
         }
         moveCell();
 //        checkOutOfBorder();
@@ -443,6 +451,10 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
         if ((aImmuneCell.type==1)&&(aImmuneCell.immunePotential>=5)) {
             aImmuneCell.Dispose();
         }
+    }
+
+    double RecalculateDeathProb(double basicProb){
+        return basicProb+(1+Math.tanh(0.0001*antigenNumber))/2;
     }
 
     void moveCell(){
@@ -507,6 +519,7 @@ public class Model2D {
         Vis2DOpenGL vis=new Vis2DOpenGL("Cell Fusion Visualization", 1000,1000,SIDE_LEN,SIDE_LEN);
         
         String path_to_file = "Models/MelanomaWorkshop/Model2D/spatial_distribution/stroma_clusters.txt";
+        //String path_to_file = "/Users/baratcEA/work/Moffitt/Workshop/2017/Data/Imaging/18003_coorCells_IMO7.csv";
 
         //List<String> list = d.initImageFile(path_to_file);
 
