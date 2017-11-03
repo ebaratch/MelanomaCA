@@ -40,8 +40,8 @@ class Dish extends AgentGrid2D<Cell> {
     double STEADY_STATE_FORCE=0;
     double MAX_STEADY_STATE_LOOPS=10;
     double[] DIV_RADIUS=new double[CELL_RAD.length];
-    double FORCE_EXPONENT=3;
-    double FORCE_SCALER=0.5;
+    double[] FORCE_EXPONENT={1.5,1,1};
+    double[] FORCE_SCALER={0.5,0.2,0.5};
     double immAttr; // alpha
     double stromAttr; // beta
 
@@ -451,7 +451,7 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
         if(overlap<0){
             return 0;
         }
-        return Math.pow(G().FORCE_SCALER*overlap,G().FORCE_EXPONENT);
+        return Math.pow(G().FORCE_SCALER[this.type]*overlap,G().FORCE_EXPONENT[this.type]);
         //return G().FORCE_SCALER*overlap;
     }
 
