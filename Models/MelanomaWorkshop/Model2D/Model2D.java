@@ -284,7 +284,7 @@ class Dish extends AgentGrid2D<Cell> {
             double x, y;
             for (int i = 0; i < x_array.length; i++) {
                 x = (x_array[i] - min_x) / delta_x  * xDim;
-                y = (y_array[i] - min_y) / delta_y  * yDim;
+                y = yDim - ((y_array[i] - min_y) / delta_y  * yDim);
                 int type = type_array[i];
                 if (x < xDim && y < yDim && type < 10){
                     System.out.println("----- seeding");
@@ -688,7 +688,7 @@ public class Model2D {
     static int STARTING_POP=20;
     static int STARTING_STROMA=70;
     static double STARTING_RADIUS=20;
-    static int TIMESTEPS=1;
+    static int TIMESTEPS=4000;
 
 
     static float[] circleCoords=Utils.GenCirclePoints(1,10);
@@ -697,9 +697,11 @@ public class Model2D {
 
         //TickTimer trt=new TickRateTimer();
         Vis2DOpenGL vis=new Vis2DOpenGL("melanoma metastasis", 1000,1000,SIDE_LEN,SIDE_LEN);
-        String path_to_input_file = "Models/MelanomaWorkshop/Model2D/spatial_distribution/stroma_clusters.txt";
-        //path_to_input_file = "Models/MelanomaWorkshop/Model2D/spatial_distribution/18032_coorCells_IMO7.csv";
-        String path_to_output_file = "Models/MelanomaWorkshop/Model2D/spatial_distribution/simulation_output.txt";
+        String name = "18003_coorCells_IMO7";
+        String input_path  = "Models/MelanomaWorkshop/Model2D/spatial_distribution";
+        String path_to_input_file = input_path.concat("/").concat(name).concat(".csv");
+        String output_path = "Models/MelanomaWorkshop/Model2D/output";
+        String path_to_output_file = output_path.concat("/").concat(name).concat("_output").concat(".csv");
 
         //List<String> list = d.initImageFile(path_to_file);
 
@@ -715,9 +717,12 @@ public class Model2D {
             d.Step();
             DrawCells(vis,d);
             DrawDiffusible(win,d);
-
+            if (i == 0){
+                vis.ToPNG(output_path.concat("/").concat(name).concat("_first").concat(".png"));
+            }
             if (i == TIMESTEPS-1){
                 d.writeCellCoords( path_to_output_file );
+                vis.ToPNG(output_path.concat("/").concat(name).concat("_last").concat(".png"));
             }
         }
     }
