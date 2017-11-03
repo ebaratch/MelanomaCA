@@ -40,13 +40,13 @@ class Dish extends AgentGrid2D<Cell> {
     double STEADY_STATE_FORCE=0;
     double MAX_STEADY_STATE_LOOPS=10;
     double[] DIV_RADIUS=new double[CELL_RAD.length];
-    double FORCE_EXPONENT=2;
-    double FORCE_SCALER=0.5;
+    double[] FORCE_EXPONENT={1.5,1,1};
+    double[] FORCE_SCALER={0.5,0.2,0.5};
     double immAttr; // alpha
     double stromAttr; // beta
 
     double[] divProb={0.01,0.0,0.0,0.01};
-    double[] deathProb={0.009,0.0,0.0,0.0}; // baseline death probability
+    double[] deathProb={0.007,0.0,0.0,0.0}; // baseline death probability
     int initialAntigens=200;
     int antigenThreshold = 400;
     int TotalAntigenLoad=200;
@@ -146,11 +146,23 @@ class Dish extends AgentGrid2D<Cell> {
             int cnt = 0;
             for (Cell c:this) {
 
-                int type = c.type;
+                int tmp_type = c.type;
                 double x = c.Xpt();
                 double y = c.Ypt();
                 System.out.println(x);
                 System.out.println(y);
+                int type = 10;
+                switch (tmp_type) {
+                    case 1:
+                        type = 1;      // Immune (1) -> (1)
+                        break;
+                    case 0:
+                        type = 2;      // Melanocyte  (0) -> (2)
+                        break;
+                    case 2:
+                        type = 3;      // STROMA (2) -> (3)
+                        break;
+                }
                 System.out.println(type);
                 line = "" + cnt + "," + type + "," + x + "," + y + "\n";
                 printWriter.print(line);
@@ -460,7 +472,7 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
         if(overlap<0){
             return 0;
         }
-        return Math.pow(G().FORCE_SCALER*overlap,G().FORCE_EXPONENT);
+        return Math.pow(G().FORCE_SCALER[this.type]*overlap,G().FORCE_EXPONENT[this.type]);
         //return G().FORCE_SCALER*overlap;
     }
 
@@ -625,7 +637,6 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
     }
 
     double additDivStroma(Cell thisCell){
-
         double addDivCoeff=G().diffusible.Get(thisCell.Xsq(),thisCell.Ysq());
         if (addDivCoeff>1) {
             return (G().addDivStroma);
@@ -708,9 +719,9 @@ public class Model2D {
         double[] motility={1,1,1,1};
 
         //TickTimer trt=new TickRateTimer();
-        Vis2DOpenGL vis=new Vis2DOpenGL("Cell Fusion Visualization", 1000,1000,SIDE_LEN,SIDE_LEN);
+        Vis2DOpenGL vis=new Vis2DOpenGL("melanoma metastasis", 1000,1000,SIDE_LEN,SIDE_LEN);
         String path_to_input_file = "Models/MelanomaWorkshop/Model2D/spatial_distribution/stroma_clusters.txt";
-        path_to_input_file = "Models/MelanomaWorkshop/Model2D/spatial_distribution/18032_coorCells_IMO7.csv";
+        //path_to_input_file = "Models/MelanomaWorkshop/Model2D/spatial_distribution/18032_coorCells_IMO7.csv";
         String path_to_output_file = "Models/MelanomaWorkshop/Model2D/spatial_distribution/simulation_output.txt";
 
         //List<String> list = d.initImageFile(path_to_file);
@@ -734,17 +745,19 @@ public class Model2D {
             DrawCells(vis,d);
             DrawDiffusible(win,d);
 
-            //if (i == TIMESTEPS-1){
-            //    d.writeCellCoords( path_to_output_file );
-            //}
+            if (i == TIMESTEPS-1){
+                d.writeCellCoords( path_to_output_file );
+            }
         }
     }
 
     static void DrawCells(Vis2DOpenGL vis,Dish d){
         vis.Clear(Dish.BLACK);
+        /*
         for (int i = 0; i < d.BloodVesselsCoord.size(); i++) {
             vis.Circle(d.BloodVesselsCoord.get(i)[0], d.BloodVesselsCoord.get(i)[1], 2, d.BLUE);
         }
+        */
         for (Cell c:d) {
             //color "cytoplasm"
             vis.Circle(c.Xpt(),c.Ypt(),c.radius,c.color);
