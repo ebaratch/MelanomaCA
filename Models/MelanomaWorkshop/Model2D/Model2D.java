@@ -40,19 +40,22 @@ class Dish extends AgentGrid2D<Cell> {
     double STEADY_STATE_FORCE=0;
     double MAX_STEADY_STATE_LOOPS=10;
     double[] DIV_RADIUS=new double[CELL_RAD.length];
-    double FORCE_EXPONENT=3;
+    double FORCE_EXPONENT=2;
     double FORCE_SCALER=0.5;
     double immAttr; // alpha
     double stromAttr; // beta
 
-//    double[] divProb={0.01,0.0,0.0,0.01};
-//    double[] deathProb={0.009,0.0,0.0,0.0}; // baseline death probability
+    double[] divProb={0.01,0.0,0.0,0.01};
+    double[] deathProb={0.009,0.0,0.0,0.0}; // baseline death probability
     int initialAntigens=200;
     int antigenThreshold = 400;
-    double killingProbability=1.0;
-    double treatmentKillingProbability=0.5;
-    double[] divProb={0.002,0.0,0.0,0.01};
-    double[] deathProb={0.0,0.0,0.0,0.0}; // baseline death probability
+    int TotalAntigenLoad=200;
+    double killingProbability=0.1;
+    double treatmentKillingProbability=1.0;
+    int recruitmentRate=1; //Number of new immune cell per unit of time
+    int treatment=0;
+    //double[] divProb={0.002,0.0,0.0,0.01};
+    //double[] deathProb={0.0,0.0,0.0,0.0}; // baseline death probability
     double baseCaDeathProb=deathProb[0];
     double productionRate=1.5;
     double decayRate=1.2;
@@ -308,11 +311,12 @@ class Dish extends AgentGrid2D<Cell> {
     void immuneArrival(){
         int tick= GetTick();
         if ((tick % 70)==1){
-            for (int i = 0; i <BloodVesselsCoord.size() ; i++) {
-            Cell c=NewAgentPT(BloodVesselsCoord.get(i)[0],BloodVesselsCoord.get(i)[1]);
-            c.Init(1,0); //immune
+        for (int i = 0; i <BloodVesselsCoord.size() ; i++) {
+                Cell c = NewAgentPT(BloodVesselsCoord.get(i)[0], BloodVesselsCoord.get(i)[1]);
+                c.Init(1, 0); //immune
             }
         }
+        //}
     }
 
     void Production() {
@@ -343,6 +347,23 @@ class Dish extends AgentGrid2D<Cell> {
             diffusible.DiffusionADI(1,0);
             //diffusible.Advection2ndPredCorr(0.1, 0.1);
         }
+    }
+
+    int GetNeoantigenLoad(){
+        int res = 0;
+        for (Cell c : cancerCells) {
+            res = res + c.antigenNumber;
+            res = 1;
+        }
+        return res;
+    }
+
+    void StartTreatment(){
+        treatment=1;
+    }
+
+    void EndTreatment(){
+        treatment=0;
     }
 
 
@@ -471,7 +492,7 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
         if (this.type==0) {
             Cell killer = checkTouchingImmuneCells();// returns true if in the circle around a cancer cell founds at least one immune cell
             if (checkTouch == true) {
-                if (G().rn.nextDouble() < aditDeathProb(G().killingProbability,G().antigenThreshold)) {  // if immune cell is present, an additional deathProbab is added
+                if (G().rn.nextDouble() < aditDeathProb((1-G().treatment)*G().killingProbability+G().treatment*G().treatmentKillingProbability,G().antigenThreshold)) {  // if immune cell is present, an additional deathProbab is added
                     Dispose();
                     removeDeathFromArrayList(this);
                     immuneExhaustion(killer);
@@ -677,7 +698,9 @@ public class Model2D {
     static int STARTING_POP=20;
     static int STARTING_STROMA=70;
     static double STARTING_RADIUS=20;
-    static int TIMESTEPS=40000;
+    static int TIMESTEPS=1000;
+    static int TREATMENTSTART=5000;
+    static int TREATMENTEND=10000;
 
 
     static float[] circleCoords=Utils.GenCirclePoints(1,10);
@@ -702,6 +725,12 @@ public class Model2D {
             vis.TickPause(0);
             win.TickPause(0);
             d.Step();
+            if (i>TREATMENTSTART  && i<TREATMENTSTART+1){
+                d.StartTreatment();
+            }
+            if (i>TREATMENTEND  && i<TREATMENTEND+1){
+                d.EndTreatment();
+            }
             DrawCells(vis,d);
             DrawDiffusible(win,d);
 
