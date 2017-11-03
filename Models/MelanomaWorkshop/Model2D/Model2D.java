@@ -44,16 +44,19 @@ class Dish extends AgentGrid2D<Cell> {
     double FORCE_SCALER=0.5;
     double immAttr; // alpha
     double stromAttr; // beta
-    double[] divProb={0.003,0.0,0.0,0.01};
-    double[] deathProb={0.0025,0.0,0.0,0.0}; // baseline death probability
-    double baseCaDeathProb=deathProb[0];
-    double productionRate=0.1;
-    double decayRate=0.1;
     int initialAntigens=200;
     int antigenThreshold = 400;
     double killingProbability=0.6;
     double treatmentKillingProbability=0.5;
+    double[] divProb={0.002,0.0,0.0,0.01};
+    double[] deathProb={0.0,0.0,0.0,0.0}; // baseline death probability
+    double baseCaDeathProb=deathProb[0];
+    double productionRate=1.5;
+    double decayRate=1.2;
+    double decayRateStroma=0.7;
+    double additDeathProb = 0.5;
     double mutationProb=0.1;
+    double addDivStroma=0.2;
     int vessels_grid_x = 4;
     int vessels_grid_y = 4;
     PDEGrid2D diffusible = new PDEGrid2D(xDim, yDim); //Diffusible factor (VEGF,FGF,TGFB)
@@ -69,6 +72,7 @@ class Dish extends AgentGrid2D<Cell> {
     ArrayList<Cell> stromaCells=new ArrayList<>();
     ArrayList<Cell> immuneCells=new ArrayList<>();
     ArrayList<double[]>BloodVesselsCoord=new ArrayList<>();
+
 
     public ArrayList<double[]> addBloodVessels(int n_vessels_x, int n_vessels_y){
         ArrayList<double[]>BloodVesselsCoord=new ArrayList<>();
@@ -107,6 +111,7 @@ class Dish extends AgentGrid2D<Cell> {
         }
         return minValue;
     }
+
 
     public List<String> readCellCoords(String path_to_file){
         List<String> lines = new ArrayList<String>();
@@ -203,10 +208,11 @@ class Dish extends AgentGrid2D<Cell> {
             }
 
             for (int i = 0; i < startingPop; i++) {
-                //            Utils.RandomPointInCircle(startingRadius, startCoords, rn);
-                Cell c = NewAgentPT(xDim / 2.0, yDim / 2.0);
-                //            Cell c=NewAgentPT(startCoords[0]+xDim/2.0,startCoords[1]+yDim/2.0);
-                c.Init(0,initialAntigens);
+
+            //            Utils.RandomPointInCircle(startingRadius, startCoords, rn);
+            Cell c = NewAgentPT(xDim / 2.0, yDim / 2.0);
+            //            Cell c=NewAgentPT(startCoords[0]+xDim/2.0,startCoords[1]+yDim/2.0);
+            c.Init(0,initialAntigens);
             }
 
         }
@@ -300,8 +306,8 @@ class Dish extends AgentGrid2D<Cell> {
         int tick= GetTick();
         if ((tick % 70)==1){
             for (int i = 0; i <BloodVesselsCoord.size() ; i++) {
-                Cell c=NewAgentPT(BloodVesselsCoord.get(i)[0],BloodVesselsCoord.get(i)[1]);
-                c.Init(1,0); //immune
+            Cell c=NewAgentPT(BloodVesselsCoord.get(i)[0],BloodVesselsCoord.get(i)[1]);
+            c.Init(1,0); //immune
             }
         }
     }
@@ -320,6 +326,14 @@ class Dish extends AgentGrid2D<Cell> {
         }
     }
 
+    void stromaChemDecay(){
+        for (int i = 0; i <stromaCells.size(); i++) {
+            int sX=stromaCells.get(i).Xsq();
+            int sY=stromaCells.get(i).Ysq();
+            diffusible.Set(sX,sY , Math.exp(-decayRateStroma)*diffusible.Get(sX,sY));
+        }
+    }
+
     void Diffusion(){
         //diff.Advection2ndLW(xVels, yVels);
         for (int i = 0; i < 1; i++) {
@@ -335,6 +349,7 @@ class Dish extends AgentGrid2D<Cell> {
         Diffusion();
         Production();
         ChemDecay();
+        stromaChemDecay();
 
         //CELLS
         //division
@@ -364,7 +379,7 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
     int color;
     int type;
     double oldProb;
-    static double[] motility={0.0,0.04,0.006};
+    static double[] motility={0.01,0.01,0.006,0.1};
     double xVelStart;
     double yVelStart;
     double deviation;
@@ -406,7 +421,7 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
     void SetCellColor(){
 
         switch (type) {
-            case 0:  color = G().RED;      // MELANOMA
+            case 0:  color = RGB(1-antigenNumber/1000,0,0);//G().RED;      // MELANOMA
                 break;
             case 1:  color = G().CYAN;     // IMMUNE
                 break;
@@ -460,6 +475,8 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
                     return;
                 }
             }
+
+
         }
         if(G().rn.nextDouble()<G().deathProb[type]){  /// calculate chance of death
             Dispose();
@@ -468,9 +485,17 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
         }
 
 
+
         removeImmuneExhausted(this);
 
+;
 
+        if(this.type==2) { // additional gradient-dependent division probability for stromal cells
+            if(G().rn.nextDouble()<additDivStroma(this)){
+                Cell child=Divide(G().DIV_RADIUS[type],G().divCoordScratch,G().rn);
+                child.Init(this.type,0);
+            }
+        }
         if(G().rn.nextDouble()<G().divProb[type]){
             Cell child=Divide(G().DIV_RADIUS[type],G().divCoordScratch,G().rn);
             if(G().rn.nextDouble()<G().mutationProb){
@@ -571,6 +596,20 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
         }
     }
 
+    double additDeathProb(){
+
+        return (1+Math.tanh(0.0001*antigenNumber))/2;
+    }
+
+    double additDivStroma(Cell thisCell){
+
+        double addDivCoeff=G().diffusible.Get(thisCell.Xsq(),thisCell.Ysq());
+        if (addDivCoeff>1) {
+            return (G().addDivStroma);
+        }
+        else return 0;
+    }
+
     double aditDeathProb(double factor,double thresh){
 
         return Math.min(1,factor)*(1+Math.tanh(10*(antigenNumber-thresh)))/2;
@@ -580,15 +619,7 @@ class Cell extends SphericalAgent2D<Cell,Dish> {
     void moveCell(){
         switch (type) {
             case 0:  // cancer cells do not move
-                xVelStart=xVelStart-(deviation/2)+deviation*Math.random();
-                yVelStart=yVelStart-(deviation/2)+deviation*Math.random();
-//                double attX = G().diffusible.GradientX(this.Xsq(), this.Ysq());
-//                double attY = G().diffusible.GradientY(this.Xsq(), this.Ysq());
-//                this.xVel=2*xVelStart+0.2*attX;
-//                this.yVel=2*yVelStart+0.2*attY;
-                this.xVel=xVelStart-(motility[type]/2)+motility[type]*Math.random();
-                this.yVel=yVelStart-(motility[type]/2)+motility[type]*Math.random();
-                limitVel(this);
+
                 break;
             case 1:
                 xVelStart=xVelStart-(deviation/2)+deviation*Math.random();
@@ -653,13 +684,9 @@ public class Model2D {
 
         //TickTimer trt=new TickRateTimer();
         Vis2DOpenGL vis=new Vis2DOpenGL("Cell Fusion Visualization", 1000,1000,SIDE_LEN,SIDE_LEN);
-
-
         String path_to_input_file = "Models/MelanomaWorkshop/Model2D/spatial_distribution/stroma_clusters.txt";
         path_to_input_file = "Models/MelanomaWorkshop/Model2D/spatial_distribution/18032_coorCells_IMO7.csv";
         String path_to_output_file = "Models/MelanomaWorkshop/Model2D/spatial_distribution/simulation_output.txt";
-        //List<String> list = d.initImageFile(path_to_input_file);
-
 
         //List<String> list = d.initImageFile(path_to_file);
 
