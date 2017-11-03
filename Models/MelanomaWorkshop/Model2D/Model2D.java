@@ -35,7 +35,7 @@ class Dish extends AgentGrid2D<Cell> {
     //GLOBAL CONSTANTS
     double DIVISION_PROB=0.01;
     double DEATH_PROB=0.0;
-    double[] CELL_RAD={0.5,0.3,0.3,0.3};
+    double[] CELL_RAD={0.5,0.3,0.7,0.3};
     double[] MAX_RAD=new double[CELL_RAD.length];
     double FRICTION=0.9;
     double STEADY_STATE_FORCE=0;
@@ -81,6 +81,26 @@ class Dish extends AgentGrid2D<Cell> {
 
     }
 
+    public static double getMaxValue(double[] array) {
+        double maxValue = array[0];
+        for (int i = 1; i < array.length; i++) {
+            if (array[i] > maxValue) {
+                maxValue = array[i];
+            }
+        }
+        return maxValue;
+    }
+
+    // getting the miniumum value
+    public static double getMinValue(double[] array) {
+        double minValue = array[0];
+        for (int i = 1; i < array.length; i++) {
+            if (array[i] < minValue) {
+                minValue = array[i];
+            }
+        }
+        return minValue;
+    }
 
 
     public List<String> readCellCoords(String path_to_file){
@@ -97,6 +117,8 @@ class Dish extends AgentGrid2D<Cell> {
         }
         return lines;
     }
+
+
 
 
     public void writeCellCoords(String path_to_file){
@@ -187,9 +209,13 @@ class Dish extends AgentGrid2D<Cell> {
         else{
             // Get cells from cell list
             List<String> cell_list = readCellCoords(path_to_file);
+            double[] x_array = new double[cell_list.size()-1];
+            double[] y_array = new double[cell_list.size()-1];
+            int[] type_array = new int[cell_list.size()-1];
+
             // create seeds
-            for (int i = 2; i < cell_list.size(); i++) {
-            //for (int i = 950; i < 960; i++) {
+            for (int i = 1; i < cell_list.size(); i++) {
+                //for (int i = 950; i < 960; i++) {
                 String line = cell_list.get(i);
                 String[] line_array = line.split(",");
                 System.out.println(line);
@@ -198,22 +224,42 @@ class Dish extends AgentGrid2D<Cell> {
                 double y = Double.parseDouble(line_array[3]);
                 int tmp_type = Integer.parseInt(line_array[1]);
 
+                x_array[i - 1] = x;
+                y_array[i - 1] = y;
+
                 // RECODE CELL IDS FROM NICOLAS' SCHEME TO INTERNAL
                 int type = 10;
                 switch (tmp_type) {
-                    case 1:  type = 1;      // Immune (1) -> (1)
+                    case 1:
+                        type = 1;      // Immune (1) -> (1)
                         break;
-                    case 2:  type = 0;      // Melanocyte (2) ->(0)
+                    case 2:
+                        type = 0;      // Melanocyte (2) ->(0)
                         break;
-                    case 3:  type = 2;      // STROMA (3) -> (2)
+                    case 3:
+                        type = 2;      // STROMA (3) -> (2)
                         break;
-                    case 0:  type = 10;     // type > 9 -> ignore
+                    case 0:
+                        type = 10;     // type > 9 -> ignore
                         break;
                 }
 
+                type_array[i-1] = type;
+            }
 
-                x = x / 500 * xDim;
-                y = y / 500 * yDim;
+
+            double min_x = getMinValue(x_array);
+            double min_y = getMinValue(y_array);
+            double max_x = getMaxValue(x_array);
+            double max_y = getMaxValue(y_array);
+            double delta_x = max_x - min_x;
+            double delta_y = max_y - min_y;
+
+            double x, y;
+            for (int i = 0; i < x_array.length; i++) {
+                x = (x_array[i] - min_x) / delta_x  * xDim;
+                y = (y_array[i] - min_y) / delta_y  * yDim;
+                int type = type_array[i];
                 if (x < xDim && y < yDim && type < 10){
                     System.out.println("----- seeding");
                     System.out.println(x);
@@ -520,7 +566,7 @@ public class Model2D {
     static int STARTING_POP=400;
     static int STARTING_STROMA=170;
     static double STARTING_RADIUS=20;
-    static int TIMESTEPS=1;
+    static int TIMESTEPS=4000;
 
 
     static float[] circleCoords=Utils.GenCirclePoints(1,10);
@@ -531,10 +577,11 @@ public class Model2D {
         Vis2DOpenGL vis=new Vis2DOpenGL("Cell Fusion Visualization", 1000,1000,SIDE_LEN,SIDE_LEN);
         
         String path_to_input_file = "Models/MelanomaWorkshop/Model2D/spatial_distribution/stroma_clusters.txt";
+        //path_to_input_file = "Models/MelanomaWorkshop/Model2D/spatial_distribution/18032_coorCells_IMO7.csv";
         String path_to_output_file = "Models/MelanomaWorkshop/Model2D/spatial_distribution/simulation_output.txt";
         //List<String> list = d.initImageFile(path_to_input_file);
 
-        Dish d=new Dish(SIDE_LEN,STARTING_POP,STARTING_STROMA, STARTING_RADIUS, null);
+        Dish d=new Dish(SIDE_LEN,STARTING_POP,STARTING_STROMA, STARTING_RADIUS, path_to_input_file);
         GridVisWindow win = new GridVisWindow("diffusion", d.xDim, d.yDim, 5);
         //d.SetCellsColor("red");
 
